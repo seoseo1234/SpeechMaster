@@ -9,6 +9,44 @@ let recommendedWordsCache = "";
 let worstWordCache = "";
 
 document.addEventListener('DOMContentLoaded', async () => {
+  let currentLevel = parseInt(localStorage.getItem('speechbuddy_level')) || 1;
+  let currentXp = parseInt(localStorage.getItem('speechbuddy_xp')) || 0;
+
+  function updateLevelDisplay() {
+    const levelDisplay = document.querySelector('.bg-tertiary-container');
+    if (levelDisplay) {
+      levelDisplay.innerHTML = `레벨 ${currentLevel} <span class="material-symbols-outlined">trending_up</span>`;
+    }
+  }
+
+  function showToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-primary text-white px-6 py-4 rounded-full shadow-2xl font-bold text-xl z-50 transition-opacity duration-500 flex items-center gap-2 border-4 border-outline-variant';
+    toast.innerHTML = `<span class="material-symbols-outlined">celebration</span> ${message}`;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      setTimeout(() => toast.remove(), 500);
+    }, 4000);
+  }
+
+  function gainXp(amount) {
+    currentXp += amount;
+    const requiredXp = currentLevel * 50;
+    if (currentXp >= requiredXp) {
+      currentLevel++;
+      currentXp -= requiredXp;
+      localStorage.setItem('speechbuddy_level', currentLevel);
+      localStorage.setItem('speechbuddy_xp', currentXp);
+      updateLevelDisplay();
+      showToast(`축하합니다! 레벨 ${currentLevel}(으)로 올랐어요!`);
+    } else {
+      localStorage.setItem('speechbuddy_xp', currentXp);
+    }
+  }
+
+  updateLevelDisplay();
+
   const micBtn = document.getElementById('mic-btn');
   const micIcon = document.getElementById('mic-icon');
   const micText = document.getElementById('mic-text');
@@ -162,16 +200,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function processAudio(audioBlob, url, secret) {
     const formData = new FormData();
-    formData.append('media', audioBlob);
+    formData.append('media', audioBlob, 'record.webm');
     formData.append('params', JSON.stringify({
       language: 'ko-KR',
       completion: 'sync',
-      evaluation: true,
-      text: targetSentence
+      assessment: true,
+      graph: true,
+      utterance: targetSentence
     }));
 
+    let rawUrl = url;
+    if (!url.endsWith('/stt') && !url.endsWith('/upload')) {
+      rawUrl = `${url}/recognizer/upload`;
+    }
+
     try {
-      const response = await fetch(url, {
+      const response = await fetch(rawUrl, {
         method: 'POST',
         headers: { 'X-CLOVASPEECH-API-KEY': secret },
         body: formData
@@ -247,6 +291,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       feedbackText.innerText = `"${feedbackMsg}"`;
       if (feedbackDetail) feedbackDetail.innerText = detailMsg;
       feedbackSection.scrollIntoView({ behavior: 'smooth' });
+
+      // Apply XP
+      if (score >= 90) gainXp(15);
+      else if (score >= 80) gainXp(10);
+      else gainXp(5);
 
       // Gemini Word Recommendation (Only in Story Mode)
       if (recommendationBox) {
