@@ -85,6 +85,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   const activeFairyRadio = document.querySelector(`input[name="fairy"][value="${appSettings.fairy}"]`);
   if (activeFairyRadio) activeFairyRadio.checked = true;
   applyTheme(appSettings.theme);
+  
+  const activeThemeBtn = document.querySelector(`.theme-btn[data-theme="${appSettings.theme}"]`);
+  if (activeThemeBtn) {
+    themeBtns.forEach(b => {
+      b.classList.remove('border-outline-variant');
+      b.classList.add('border-transparent');
+    });
+    activeThemeBtn.classList.remove('border-transparent');
+    activeThemeBtn.classList.add('border-outline-variant');
+  }
 
   function saveSettings() {
     localStorage.setItem('speechbuddy_settings', JSON.stringify(appSettings));
@@ -120,9 +130,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateFairyUI();
   }));
   themeBtns.forEach(btn => btn.addEventListener('click', (e) => {
-    appSettings.theme = e.target.dataset.theme;
+    appSettings.theme = e.currentTarget.dataset.theme;
     saveSettings();
     applyTheme(appSettings.theme);
+    
+    // Update active border
+    themeBtns.forEach(b => {
+      b.classList.remove('border-outline-variant');
+      b.classList.add('border-transparent');
+    });
+    e.currentTarget.classList.remove('border-transparent');
+    e.currentTarget.classList.add('border-outline-variant');
   }));
 
   function updateNameUI() {
