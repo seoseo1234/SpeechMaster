@@ -224,6 +224,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       micBtn.style.color = 'var(--color-pastel-text)';
       micBtn.style.boxShadow = '0 4px 0 #e6c84c';
 
+      feedbackTitle.style.display = 'block';
+      feedbackBox.style.display = 'flex';
+
       const feedbackDetail = document.getElementById('feedback-detail');
       let feedbackMsg = "";
       let detailMsg = "";

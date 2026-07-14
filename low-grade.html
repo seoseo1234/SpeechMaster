@@ -61,8 +61,8 @@
       <!-- Feedback Box -->
       <h2 id="feedback-title" style="display: none; margin-top: 32px; font-size: 20px; color: var(--color-primary-dark);">요정의 피드백</h2>
       <div id="feedback-box" class="feedback-box">
-        <div class="feedback-character">
-          <img src="https://api.dicebear.com/7.x/icons/svg?seed=Star&backgroundColor=b6e3f4" alt="별 요정" style="width:100%; height:100%;">
+        <div class="feedback-character" style="display: flex; align-items: center; justify-content: center; background: #fff8cc; border-radius: 50%;">
+          <span style="font-size: 48px;">⭐</span>
         </div>
         <div style="display: flex; flex-direction: column; gap: 8px;">
           <p id="feedback-text" class="feedback-text" style="margin: 0; font-size: 18px; font-weight: 500;"></p>
@@ -71,10 +71,10 @@
       </div>
 
       <!-- Recommendation Box -->
-      <div id="recommendation-box" style="display: none; margin-top: 16px; padding: 16px; background-color: var(--color-pastel-blue-light); border-radius: var(--radius-md); border: 2px dashed var(--color-pastel-blue-dark);">
-        <h3 style="margin-top: 0; color: var(--color-pastel-blue-dark); font-size: 16px;">💡 도토리 요정의 추천 발음 연습 단어!</h3>
+      <div id="recommendation-box" style="display: none; margin-top: 16px; padding: 16px; background-color: var(--color-navy-surface); border-radius: var(--radius-md); border: 2px dashed var(--color-promo-blue);">
+        <h3 style="margin-top: 0; color: var(--color-promo-blue); font-size: 16px;">💡 별 요정의 추천 발음 연습 단어!</h3>
         <p id="recommendation-text" style="margin-bottom: 12px; font-size: 16px; font-weight: bold; color: var(--color-text);"></p>
-        <button id="practice-btn" style="display: none; width: 100%; padding: 10px; background: var(--color-pastel-blue-dark); color: white; font-weight: bold; font-size: 16px; border: none; border-radius: var(--radius-sm); cursor: pointer; box-shadow: 0 4px 0 #3a6b8c;">이 단어들로 연습하기 🎯</button>
+        <button id="practice-btn" style="display: none; width: 100%; padding: 10px; background: var(--color-promo-blue); color: white; font-weight: bold; font-size: 16px; border: none; border-radius: var(--radius-sm); cursor: pointer; box-shadow: 0 4px 0 #015a91;">이 단어들로 연습하기 🎯</button>
       </div>
 
     </main>
