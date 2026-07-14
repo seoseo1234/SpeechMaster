@@ -1,85 +1,293 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html class="light" lang="ko" style="">
 <head>
-  <meta charset="UTF-8">
-  <title>저학년 모드 - AI 스피치버디</title>
-  <link rel="stylesheet" href="index.css">
-  <style>
-    .story-box {
-      font-size: 32px;
-      line-height: 1.8;
-      text-align: center;
-      padding: 60px 40px;
-      margin-bottom: 40px;
-      word-break: keep-all;
-    }
-    .mic-btn-container {
-      text-align: center;
-      margin-bottom: 40px;
-    }
-    .feedback-box {
-      display: flex;
-      gap: 20px;
-      align-items: center;
-      background: var(--color-canvas);
-      padding: 24px;
-      border-radius: 20px;
-      border: 2px dashed var(--color-pastel-green-dark);
-    }
-    .character {
-      font-size: 48px;
-    }
-  </style>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>SpeechBuddy - Lower Grade Mode</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&amp;family=Quicksand:wght@500;700&amp;display=swap" rel="stylesheet"/>
+    <!-- Material Symbols -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-secondary-fixed-variant": "#004d62",
+                    "surface-variant": "#e4e3d7",
+                    "on-primary-fixed-variant": "#544600",
+                    "outline-variant": "#d0c6ab",
+                    "on-primary-container": "#705e00",
+                    "inverse-surface": "#303129",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-bright": "#fbfaee",
+                    "tertiary-fixed-dim": "#7adc7d",
+                    "on-primary-fixed": "#221b00",
+                    "primary": "#705d00",
+                    "secondary-fixed": "#baeaff",
+                    "on-background": "#1b1c15",
+                    "primary-fixed-dim": "#e9c400",
+                    "tertiary-container": "#8ef08e",
+                    "inverse-primary": "#e9c400",
+                    "tertiary": "#006e21",
+                    "inverse-on-surface": "#f2f1e5",
+                    "on-secondary": "#ffffff",
+                    "secondary": "#0c6780",
+                    "on-surface-variant": "#4d4732",
+                    "primary-container": "#ffd700",
+                    "on-tertiary-fixed": "#002105",
+                    "on-primary": "#ffffff",
+                    "outline": "#7e775f",
+                    "error": "#ba1a1a",
+                    "surface": "#fbfaee",
+                    "on-tertiary": "#ffffff",
+                    "error-container": "#ffdad6",
+                    "tertiary-fixed": "#96f996",
+                    "surface-dim": "#dbdbcf",
+                    "surface-container-high": "#e9e9dd",
+                    "primary-fixed": "#ffe16d",
+                    "on-secondary-fixed": "#001f29",
+                    "secondary-container": "#9ae1ff",
+                    "background": "#fbfaee",
+                    "surface-tint": "#705d00",
+                    "secondary-fixed-dim": "#89d0ed",
+                    "on-tertiary-container": "#006f21",
+                    "surface-container-highest": "#e4e3d7",
+                    "on-tertiary-fixed-variant": "#005316",
+                    "on-surface": "#1b1c15",
+                    "on-secondary-container": "#09657f",
+                    "on-error": "#ffffff",
+                    "surface-container-low": "#f5f4e8",
+                    "on-error-container": "#93000a",
+                    "surface-container": "#efeee3"
+            },
+            "borderRadius": {
+                    "DEFAULT": "1rem",
+                    "lg": "2rem",
+                    "xl": "3rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "component-padding-md": "20px",
+                    "container-margin": "24px",
+                    "unit": "8px",
+                    "component-padding-sm": "12px",
+                    "component-padding-lg": "32px",
+                    "gutter": "16px",
+                    "stack-gap": "24px"
+            },
+            "fontFamily": {
+                    "body-md": ["Quicksand"],
+                    "headline-xl-mobile": ["Plus Jakarta Sans"],
+                    "label-lg": ["Quicksand"],
+                    "headline-md": ["Plus Jakarta Sans"],
+                    "headline-xl": ["Plus Jakarta Sans"],
+                    "headline-lg": ["Plus Jakarta Sans"],
+                    "body-lg": ["Quicksand"]
+            },
+            "fontSize": {
+                    "body-md": ["18px", {"lineHeight": "28px", "fontWeight": "500"}],
+                    "headline-xl-mobile": ["32px", {"lineHeight": "38px", "fontWeight": "800"}],
+                    "label-lg": ["16px", {"lineHeight": "24px", "fontWeight": "700"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "headline-xl": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "700"}],
+                    "body-lg": ["20px", {"lineHeight": "30px", "fontWeight": "500"}]
+            }
+          },
+        },
+      }
+    </script>
+    <style>
+        body {
+            background-color: #fbfaee;
+            font-family: 'Quicksand', sans-serif;
+            overflow-x: hidden;
+        }
+
+        .chunky-button-primary {
+            background-color: #ffd700; /* Sunshine Yellow */
+            box-shadow: 0 6px 0 0 #705d00; /* Earthy Brown offset */
+            transition: all 0.1s ease;
+        }
+        .chunky-button-primary:active {
+            transform: translateY(6px);
+            box-shadow: 0 0 0 0 #705d00;
+        }
+
+        .chunky-button-secondary {
+            background-color: #9ae1ff; /* Sky Blue */
+            box-shadow: 0 6px 0 0 #0c6780; /* Darker Blue offset */
+            transition: all 0.1s ease;
+        }
+        .chunky-button-secondary:active {
+            transform: translateY(6px);
+            box-shadow: 0 0 0 0 #0c6780;
+        }
+
+        .chunky-card {
+            border: 2px solid #7e775f;
+            box-shadow: 6px 6px 0 0 #7adc7d; /* Forest Green Drop */
+        }
+
+        .sound-wave {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            height: 40px;
+        }
+        .wave-bar {
+            width: 8px;
+            border-radius: 9999px;
+            background: #ffd700;
+            animation: bounce 1s ease-in-out infinite;
+        }
+        .wave-bar:nth-child(2n) { background: #7adc7d; animation-delay: 0.2s; }
+        .wave-bar:nth-child(3n) { background: #9ae1ff; animation-delay: 0.4s; }
+
+        @keyframes bounce {
+            0%, 100% { height: 10px; }
+            50% { height: 35px; }
+        }
+
+        .pulse-mic {
+            animation: pulse-ring 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(12, 103, 128, 0.4); }
+            70% { transform: scale(1); box-shadow: 0 0 0 20px rgba(12, 103, 128, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(12, 103, 128, 0); }
+        }
+
+        .letter-box {
+            display: inline-block;
+            margin: 0 8px;
+            padding: 4px 8px;
+            background: white;
+            border-bottom: 4px solid #d0c6ab;
+            border-radius: 8px;
+        }
+        
+        .letter-box.highlight-red {
+            border-bottom: 4px solid #ba1a1a;
+            color: #ba1a1a;
+            font-weight: 800;
+        }
+        .letter-box.highlight-green {
+            border-bottom: 4px solid #006e21;
+            color: #006e21;
+            font-weight: 800;
+        }
+    </style>
 </head>
-<body class="theme-low-grade">
-
-  <header>
-    <div class="container flex justify-between items-center" style="color: #333">
-      <div class="nav-brand" style="font-size: 20px;">
-        <a href="index.html">🏠 홈으로</a>
-      </div>
-      <div style="font-weight: 700; font-size: 24px;">👶 AI 스피치버디</div>
-      <div class="pill" style="background: white;">⚙️ 마이크 설정</div>
-    </div>
-  </header>
-
-  <main class="container" style="padding-top: 40px; padding-bottom: 60px;">
-    
-    <div style="text-align: center; color: var(--color-muted); font-weight: 600; margin-bottom: 16px;">
-      [ 오늘의 읽기 도전! ]
-    </div>
-
-    <div class="card story-box" id="story-box">
-      "아기 다람쥐가 나무 위로 쪼르르<br>
-      올라갔습니다."
-    </div>
-
-    <div class="mic-btn-container">
-      <button class="btn-action" id="mic-btn">🎤 누르고 말하기</button>
-    </div>
-
-      <!-- Feedback Box -->
-      <h2 id="feedback-title" style="display: none; margin-top: 32px; font-size: 20px; color: var(--color-primary-dark);">요정의 피드백</h2>
-      <div id="feedback-box" class="feedback-box">
-        <div class="feedback-character" style="display: flex; align-items: center; justify-content: center; background: #fff8cc; border-radius: 50%;">
-          <span style="font-size: 48px;">⭐</span>
+<body class="min-h-screen flex flex-col items-center">
+    <!-- TopAppBar -->
+    <header class="bg-surface border-b-4 border-outline-variant flex justify-between items-center w-full px-container-margin py-unit h-20 sticky top-0 z-50">
+        <a href="index.html" class="flex items-center justify-center w-14 h-14 rounded-full bg-surface-container-high hover:scale-105 transition-transform active:translate-y-1">
+            <span class="material-symbols-outlined text-primary text-3xl">home</span>
+        </a>
+        <h1 class="font-headline-md text-headline-md text-primary">AI 스피치버디 (저학년 모드)</h1>
+        <div class="flex gap-4">
+            <button class="flex items-center justify-center w-14 h-14 rounded-full bg-surface-container-high hover:scale-105 transition-transform active:translate-y-1">
+                <span class="material-symbols-outlined text-primary text-3xl">settings</span>
+            </button>
         </div>
-        <div style="display: flex; flex-direction: column; gap: 8px;">
-          <p id="feedback-text" class="feedback-text" style="margin: 0; font-size: 18px; font-weight: 500;"></p>
-          <p id="feedback-detail" style="margin: 0; font-size: 15px; color: var(--color-muted);"></p>
-        </div>
-      </div>
+    </header>
 
-      <!-- Recommendation Box -->
-      <div id="recommendation-box" style="display: none; margin-top: 16px; padding: 16px; background-color: var(--color-navy-surface); border-radius: var(--radius-md); border: 2px dashed var(--color-promo-blue);">
-        <h3 style="margin-top: 0; color: var(--color-promo-blue); font-size: 16px;">💡 별 요정의 추천 발음 연습 단어!</h3>
-        <p id="recommendation-text" style="margin-bottom: 12px; font-size: 16px; font-weight: bold; color: var(--color-text);"></p>
-        <button id="practice-btn" style="display: none; width: 100%; padding: 10px; background: var(--color-promo-blue); color: white; font-weight: bold; font-size: 16px; border: none; border-radius: var(--radius-sm); cursor: pointer; box-shadow: 0 4px 0 #015a91;">이 단어들로 연습하기 🎯</button>
-      </div>
+    <main class="flex-1 w-full max-w-5xl px-container-margin py-stack-gap flex flex-col items-center gap-stack-gap">
+        <!-- Daily Reading Challenge Section -->
+        <section class="w-full">
+            <div class="flex items-center justify-between mb-4 px-2">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-tertiary text-3xl" style="font-variation-settings: 'FILL' 1;">stars</span>
+                    <h2 class="font-headline-lg text-headline-lg text-on-surface">오늘의 문장 읽기</h2>
+                </div>
+                <div class="bg-tertiary-container text-on-tertiary-container px-4 py-2 rounded-full font-label-lg flex items-center gap-2">
+                    레벨 1 <span class="material-symbols-outlined">trending_up</span>
+                </div>
+            </div>
+            
+            <div class="chunky-card bg-white p-component-padding-lg rounded-xl flex flex-col items-center text-center">
+                <div class="mb-8 w-full">
+                    <div id="story-box" class="flex flex-wrap justify-center font-headline-xl text-headline-xl text-on-surface tracking-widest leading-relaxed">
+                        새로운 지문을 불러오는 중입니다... ⏳
+                    </div>
+                </div>
+                
+                <!-- Progress Visual -->
+                <div class="w-full max-w-2xl bg-surface-container rounded-full h-8 relative mb-2">
+                    <div id="progress-bar" class="bg-primary-container h-full rounded-full transition-all duration-500 flex items-center justify-end px-1" style="width: 0%;">
+                        <span class="material-symbols-outlined text-on-primary-container" style="font-variation-settings: 'FILL' 1;">star</span>
+                    </div>
+                </div>
+                <p id="progress-text" class="text-on-surface-variant font-label-lg">씩씩하고 큰 목소리로 말해보세요!</p>
+            </div>
+        </section>
 
+        <!-- Interaction Section: Mic Button -->
+        <section class="flex flex-col items-center gap-4 mt-4">
+            <div class="hidden" id="recording-status">
+                <div class="sound-wave mb-4">
+                    <div class="wave-bar"></div>
+                    <div class="wave-bar"></div>
+                    <div class="wave-bar"></div>
+                    <div class="wave-bar"></div>
+                    <div class="wave-bar"></div>
+                    <div class="wave-bar"></div>
+                    <div class="wave-bar"></div>
+                    <div class="wave-bar"></div>
+                </div>
+            </div>
+            <button id="mic-btn" class="pulse-mic rounded-full chunky-button-secondary flex items-center justify-center group w-24 h-24 md:w-32 md:h-32">
+                <span class="material-symbols-outlined text-5xl md:text-6xl text-white" id="mic-icon" style="font-variation-settings: 'FILL' 1;">mic</span>
+            </button>
+            <span id="mic-text" class="font-bold text-on-surface">누르고 말하기</span>
+        </section>
+
+        <!-- AI Feedback Section -->
+        <section id="feedback-section" class="w-full mt-4" style="display: none;">
+            <div class="chunky-card bg-surface-container-low rounded-xl p-6 flex flex-col md:flex-row items-center gap-8 relative">
+                <!-- Mascot Image -->
+                <div class="w-32 h-32 md:w-48 md:h-48 shrink-0 flex items-center justify-center">
+                    <img alt="Acorn Fairy mascot" class="w-full h-full object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBnyKAcpBdpALAMrY5wU0_mKqXcxmEHcuKMwPEA8g4Rpue_UFZzwreswCtEnBT8mtKAG3-6O4gh_E5RQxfV-AYNWNL0XQ5EazEuEDL5SlHfo8izfO2TRZs4a_1_hucpbKvfbd_fWja5K6UzesXpcuKwPQ8drVwFs21MdMXCfxsAMg-kHUVTDCGcNAcj_vRyUfZ5T25AFzfXigScRbbZeWUTEp1xn5UuDanh-YeVGfbj8t92wP13sLXJPkBquoeXaO_X7M8Hg9yHbg"/>
+                </div>
+                
+                <div class="flex-1 space-y-3 w-full">
+                    <div class="flex items-center gap-3">
+                        <span class="bg-primary text-white font-headline-md px-4 py-1 rounded-full">도토리 요정</span>
+                        <div class="flex gap-1">
+                            <span class="material-symbols-outlined text-primary-container" style="font-variation-settings: 'FILL' 1;">favorite</span>
+                            <span class="material-symbols-outlined text-primary-container" style="font-variation-settings: 'FILL' 1;">favorite</span>
+                            <span class="material-symbols-outlined text-primary-container" style="font-variation-settings: 'FILL' 1;">favorite</span>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-lg border-2 border-outline-variant relative">
+                        <!-- Speech bubble arrow -->
+                        <div class="hidden md:block absolute top-1/2 -left-3 w-6 h-6 bg-white border-l-2 border-b-2 border-outline-variant rotate-45 transform -translate-y-1/2"></div>
+                        <p id="feedback-text" class="font-body-lg text-on-surface leading-relaxed">
+                            피드백 분석 중...
+                        </p>
+                        <p id="feedback-detail" class="mt-2 text-on-surface-variant font-label-lg"></p>
+                    </div>
+
+                    <!-- Recommendation Box -->
+                    <div id="recommendation-box" style="display: none;" class="mt-4 p-4 border-2 border-dashed border-secondary bg-surface-bright rounded-lg">
+                        <h3 class="text-secondary font-bold text-lg mb-2">💡 도토리 요정의 추천 발음 연습 단어!</h3>
+                        <p id="recommendation-text" class="mb-4 text-on-surface font-bold text-xl"></p>
+                        <button id="practice-btn" class="chunky-button-secondary w-full py-3 rounded-full font-label-lg text-white flex justify-center items-center gap-2">
+                            <span class="material-symbols-outlined">target</span> 이 단어들로 연습하기 🎯
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </section>
     </main>
-  </div>
 
-  <script type="module" src="./low-grade.js"></script>
+    <script type="module" src="/low-grade.js"></script>
 </body>
 </html>

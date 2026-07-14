@@ -4,32 +4,50 @@ const secretKey = import.meta.env.VITE_CLOVA_SECRET_KEY;
 const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
 let targetSentence = "로딩 중...";
-let currentMode = 'story'; // 'story' | 'practice'
+let currentMode = 'story'; // 'story' | 'practice' | 'finished'
 let recommendedWordsCache = "";
 let worstWordCache = "";
 
 document.addEventListener('DOMContentLoaded', async () => {
   const micBtn = document.getElementById('mic-btn');
+  const micIcon = document.getElementById('mic-icon');
+  const micText = document.getElementById('mic-text');
+  const recordingStatus = document.getElementById('recording-status');
+  
   const storyBox = document.getElementById('story-box');
-  const feedbackBox = document.getElementById('feedback-box');
-  const feedbackTitle = document.getElementById('feedback-title');
+  const feedbackSection = document.getElementById('feedback-section');
   const feedbackText = document.getElementById('feedback-text');
+  const feedbackDetail = document.getElementById('feedback-detail');
+  
   const recommendationBox = document.getElementById('recommendation-box');
   const recommendationText = document.getElementById('recommendation-text');
   const practiceBtn = document.getElementById('practice-btn');
 
-  // Move event listeners above await to ensure they are attached immediately
-  // Handle Practice Button
+  // Function to render letter-box UI
+  function renderSentence(text, highlightHtml = null) {
+    if (highlightHtml) {
+      storyBox.innerHTML = highlightHtml;
+      return;
+    }
+    let html = '';
+    const words = text.split(' ');
+    words.forEach((w, idx) => {
+      for (let char of w) {
+        html += `<span class="letter-box">${char}</span>`;
+      }
+      if (idx < words.length - 1) html += '<span class="mx-4"></span>';
+    });
+    storyBox.innerHTML = html;
+  }
+
   practiceBtn.addEventListener('click', () => {
     currentMode = 'practice';
     targetSentence = recommendedWordsCache;
-    storyBox.innerHTML = `"${targetSentence}"`;
+    renderSentence(targetSentence);
     recommendationBox.style.display = 'none';
-    feedbackBox.style.display = 'none';
-    feedbackTitle.style.display = 'none';
-    micBtn.innerHTML = '🎤 연습 시작하기';
-    micBtn.style.background = 'var(--color-primary)';
-    micBtn.style.color = 'white';
+    feedbackSection.style.display = 'none';
+    micText.innerText = '연습 시작하기';
+    micIcon.innerText = 'mic';
   });
 
   let isRecording = false;
@@ -40,13 +58,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   micBtn.addEventListener('click', async () => {
     if (currentMode === 'finished') {
       currentMode = 'story';
-      storyBox.innerText = "새로운 지문을 불러오는 중입니다... ⏳";
-      feedbackBox.style.display = 'none';
-      feedbackTitle.style.display = 'none';
+      renderSentence("새로운 지문을 불러오는 중입니다... ⏳");
+      feedbackSection.style.display = 'none';
       recommendationBox.style.display = 'none';
-      micBtn.innerHTML = '🎤 누르고 말하기';
-      micBtn.style.background = 'var(--color-primary)';
-      micBtn.style.color = 'white';
+      micText.innerText = '누르고 말하기';
+      micIcon.innerText = 'mic';
       await generateNewSentence();
       return;
     }
@@ -77,15 +93,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       mediaRecorder.start();
       isRecording = true;
-      micBtn.innerHTML = '🔴 녹음 중... (종료하려면 클릭하세요)';
-      micBtn.style.background = 'var(--color-error)';
-      micBtn.style.color = 'white';
-      micBtn.style.boxShadow = 'none';
-      micBtn.style.transform = 'translateY(4px)';
+      
+      // Update UI for recording state
+      recordingStatus.classList.remove('hidden');
+      micText.innerText = '말하는 중...';
+      micIcon.innerText = 'stop';
+      micBtn.classList.replace('chunky-button-secondary', 'chunky-button-primary');
+      micBtn.style.backgroundColor = '#ba1a1a';
+      micBtn.style.boxShadow = '0 6px 0 0 #93000a';
 
-      feedbackBox.style.display = 'none';
-      feedbackTitle.style.display = 'none';
-      storyBox.innerHTML = `"${targetSentence}"`;
+      feedbackSection.style.display = 'none';
+      renderSentence(targetSentence);
 
     } catch (err) {
       alert('마이크 접근 권한이 필요합니다.');
@@ -93,7 +111,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  storyBox.innerText = "새로운 지문을 불러오는 중입니다... ⏳";
+  renderSentence("새로운 지문을 불러오는 중입니다... ⏳");
 
   // Generate initial sentence using Gemini
   await generateNewSentence();
@@ -101,7 +119,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function generateNewSentence() {
     if (!geminiKey) {
       targetSentence = "아기 다람쥐가 나무 위로 쪼르르 올라갔습니다.";
-      storyBox.innerText = `"${targetSentence}"`;
+      renderSentence(targetSentence);
       return;
     }
     
@@ -118,149 +136,106 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (response.ok) {
         const data = await response.json();
         targetSentence = data.candidates[0].content.parts[0].text.trim().replace(/^"|"$/g, '');
-        storyBox.innerText = `"${targetSentence}"`;
       } else {
         targetSentence = "바람이 시원하게 불어옵니다.";
-        storyBox.innerText = `"${targetSentence}"`;
       }
     } catch(e) {
       targetSentence = "예쁜 꽃밭에 나비가 날아왔습니다.";
-      storyBox.innerText = `"${targetSentence}"`;
     }
+    renderSentence(targetSentence);
   }
-
-
 
   function stopRecording() {
     isRecording = false;
     mediaRecorder.stop();
     stream.getTracks().forEach(track => track.stop());
 
-    micBtn.innerHTML = '⚙️ AI 분석 중...';
-    micBtn.style.background = 'var(--color-surface-alt)';
-    micBtn.style.color = 'var(--color-muted)';
-    micBtn.style.transform = 'none';
+    micText.innerText = 'AI 분석 중...';
+    micIcon.innerText = 'hourglass_empty';
+    
+    // Restore styling
+    recordingStatus.classList.add('hidden');
+    micBtn.style.backgroundColor = '';
+    micBtn.style.boxShadow = '';
+    micBtn.classList.replace('chunky-button-primary', 'chunky-button-secondary');
   }
 
-  async function processAudio(audioBlob, invokeUrl, secretKey) {
+  async function processAudio(audioBlob, url, secret) {
+    const formData = new FormData();
+    formData.append('media', audioBlob);
+    formData.append('params', JSON.stringify({
+      language: 'ko-KR',
+      completion: 'sync',
+      evaluation: true,
+      text: targetSentence
+    }));
+
     try {
-      let rawUrl = invokeUrl;
-      if (!invokeUrl.endsWith('/stt') && !invokeUrl.endsWith('/upload')) {
-        rawUrl = `${invokeUrl}/recognizer/upload`;
-      }
-      
-      const urlObj = new URL(rawUrl);
-      let proxiedUrl = `/api/clova${urlObj.pathname}${urlObj.search}`;
-      const isSttEndpoint = proxiedUrl.includes('/stt');
-
-      let bodyData;
-      let headers = {
-        'X-CLOVASPEECH-API-KEY': secretKey
-      };
-
-      if (isSttEndpoint) {
-        // STT Endpoint expects binary audio and query params
-        const queryParams = new URLSearchParams(urlObj.search);
-        queryParams.set('lang', 'Kor');
-        queryParams.set('assessment', 'true');
-        queryParams.set('utterance', targetSentence);
-        queryParams.set('graph', 'true'); // Request audio waveform for fluency analysis
-        proxiedUrl = `/api/clova${urlObj.pathname}?${queryParams.toString()}`;
-        
-        headers['Content-Type'] = 'application/octet-stream';
-        bodyData = audioBlob;
-      } else {
-        // Fallback for /recognizer/upload (FormData)
-        const formData = new FormData();
-        formData.append('media', audioBlob, 'record.webm');
-        formData.append('params', JSON.stringify({
-          language: 'ko-KR',
-          completion: 'sync',
-          assessment: true,
-          graph: true, // Request audio waveform for fluency analysis
-          utterance: targetSentence
-        }));
-        bodyData = formData;
-      }
-
-      // Send to CLOVA Speech via Vite Proxy
-      const response = await fetch(proxiedUrl, {
+      const response = await fetch(url, {
         method: 'POST',
-        headers: headers,
-        body: bodyData
+        headers: { 'X-CLOVASPEECH-API-KEY': secret },
+        body: formData
       });
 
+      const data = await response.json();
       if (!response.ok) {
-        let errorBody = "";
-        try { errorBody = await response.text(); } catch(e) {}
-        throw new Error(`API Request Failed: ${response.status} ${response.statusText} - ${errorBody}`);
+        throw new Error(data.message || 'API Error');
       }
 
-      const data = await response.json();
-      
-      // Handle the Clova Speech response
-      const score = data.assessment_score; // 0 to 100
+      const score = data.assessment_score;
       const recognizedText = data.text;
       const details = data.assessment_details;
       const usrGraph = data.usr_graph || [];
       
-      const parsed = parseAssessmentDetails(details);
-      const highlightedText = parsed.html || recognizedText || "음성이 인식되지 않았습니다.";
+      const parsed = parseAssessmentDetails(details, targetSentence);
+      const highlightedText = parsed.html || `<span class="text-error font-bold">음성이 인식되지 않았습니다.</span>`;
       
-      // Calculate Fluency (Rhythm) Score based on pauses in the audio graph
       const fluency = calculateFluency(usrGraph);
 
-      // Update story text with the score and highlighted words
-      storyBox.innerHTML = `
-        <div style="font-size:18px; color:var(--color-muted); margin-bottom: 12px;">
-          발음 정확도: <strong style="color:${score >= 80 ? 'var(--color-success)' : 'var(--color-error)'}">${score || 0}점</strong> | 
-          리듬감(유창성): <strong style="color:${fluency.score >= 80 ? 'var(--color-success)' : 'var(--color-error)'}">${fluency.score}점</strong>
-        </div>
-        "${highlightedText}"`;
+      // Restore button text
+      micText.innerText = '다시 해보기';
+      micIcon.innerText = 'replay';
 
-      // Show feedback
-      micBtn.innerHTML = '🎤 다시 해보기';
-      micBtn.style.background = 'var(--color-pastel-yellow-dark)';
-      micBtn.style.color = 'var(--color-pastel-text)';
-      micBtn.style.boxShadow = '0 4px 0 #e6c84c';
+      // Update story box with highlighted letters
+      renderSentence(targetSentence, highlightedText);
 
-      feedbackTitle.style.display = 'block';
-      feedbackBox.style.display = 'flex';
+      // Update Progress Bar
+      const progressBar = document.getElementById('progress-bar');
+      progressBar.style.width = `${Math.min(100, Math.max(0, score))}%`;
+      const progressText = document.getElementById('progress-text');
+      progressText.innerHTML = `발음 정확도: <strong class="${score >= 80 ? 'text-tertiary' : 'text-error'}">${score || 0}점</strong> | 리듬감(유창성): <strong class="${fluency.score >= 80 ? 'text-tertiary' : 'text-error'}">${fluency.score}점</strong>`;
 
-      const feedbackDetail = document.getElementById('feedback-detail');
+      feedbackSection.style.display = 'block';
+
       let feedbackMsg = "";
       let detailMsg = "";
 
       if (currentMode === 'practice') {
         if (score >= 90) {
-          feedbackMsg = `"우와, 정말 대단해! 오늘 어려운 글자 '${worstWordCache}'(을)를 완벽하게 마스터했어! 발음 점수 ${score}점!"`;
-          detailMsg = `별 요정이 ${score}점을 주었어요! 이제 어떤 단어든 자신감 있게 읽을 수 있어요.`;
+          feedbackMsg = `우와, 정말 대단해! 오늘 어려운 글자 '${worstWordCache}'(을)를 완벽하게 마스터했어! 발음 점수 ${score}점!`;
+          detailMsg = `요정이 ${score}점을 주었어요! 이제 어떤 단어든 자신감 있게 읽을 수 있어요.`;
           currentMode = 'finished';
-          micBtn.innerHTML = '✨ 새로운 지문 도전하기';
-          micBtn.style.background = 'var(--color-success)';
-          micBtn.style.color = 'white';
-          micBtn.style.boxShadow = '0 4px 0 #3a8a5b';
+          micText.innerText = '새로운 지문 도전하기';
+          micIcon.innerText = 'stars';
+          micBtn.classList.replace('chunky-button-secondary', 'chunky-button-primary');
         } else {
-          feedbackMsg = `"거의 다 왔어! 연습 단어들을 조금만 더 뚜렷하게 다시 읽어볼까?"`;
+          feedbackMsg = `거의 다 왔어! 연습 단어들을 조금만 더 뚜렷하게 다시 읽어볼까?`;
           detailMsg = `현재 점수: ${score}점. 천천히 한 글자씩 또박또박 소리 내어 보세요!`;
         }
       } else {
         if (score >= 90 && fluency.score >= 90) {
-          feedbackMsg = `"우와! 발음도 정말 완벽하고 끊어 읽기도 아나운서처럼 자연스러웠어! 100점 만점!"`;
+          feedbackMsg = `우와! 발음도 정말 완벽하고 끊어 읽기도 아나운서처럼 자연스러웠어! 100점 만점!`;
           detailMsg = `어려운 발음도 훌륭하게 소화했고, 중간에 부자연스러운 멈춤 없이 완벽한 리듬으로 읽었어요.`;
         } else if (score >= 80) {
           if (fluency.pauseCount > 0) {
-            feedbackMsg = `"발음은 아주 좋았어! 하지만 중간에 너무 길게 쉬어간 곳이 ${fluency.pauseCount}번 있었네. 물 흐르듯 자연스럽게 이어서 읽어볼까?"`;
-            detailMsg = `단어들은 정확히 읽었지만, 숨을 너무 오래 참고 읽거나 중간에 멈춘 구간이 감지되었어요. 자연스럽게 이어서 읽는 연습을 해보세요.`;
-          } else if (parsed.worstWord) {
-            feedbackMsg = `"리듬감은 완벽해! 하지만 <strong>'${parsed.worstWord}'</strong> 발음이 조금 아쉬웠어. 이 단어만 더 뚜렷하게 읽어보자!"`;
-            detailMsg = `AI 분석 결과 '${parsed.worstWord}' 단어가 불명확하게 들렸어요. 입을 크게 벌리고 소리 내보세요.`;
+            feedbackMsg = `발음은 아주 좋았어! 하지만 중간에 너무 길게 쉬어간 곳이 ${fluency.pauseCount}번 있었네. 물 흐르듯 자연스럽게 이어서 읽어볼까?`;
+            detailMsg = `가장 헷갈려 했던 단어는 '${parsed.worstWord}'예요. 유창성 점수는 ${fluency.score}점입니다.`;
           } else {
-            feedbackMsg = `"참 잘했어! 조금만 더 큰 소리로 자신감 있게 읽어보면 완벽할거야!"`;
-            detailMsg = `목소리가 조금 작거나 불분명한 구간이 있어요. 큰 소리로 다시 한번 도전!`;
+            feedbackMsg = `참 잘했어! '${parsed.worstWord}' 부분만 한 번 더 또박또박 읽어보면 완벽할 것 같아!`;
+            detailMsg = `전체적으로 훌륭하지만 '${parsed.worstWord}' 발음이 살짝 아쉬웠어요. 유창성 점수는 ${fluency.score}점입니다.`;
           }
         } else {
-          feedbackMsg = `"어려운 단어가 있었나 보네! 별 요정이랑 천천히 처음부터 다시 읽어보자!"`;
+          feedbackMsg = `어려운 단어가 있었나 보네! 별 요정이랑 천천히 처음부터 다시 읽어보자!`;
           if (parsed.worstWord) {
             detailMsg = `가장 헷갈려 했던 단어는 '${parsed.worstWord}'예요. 이 부분의 발음이 뭉개지거나 다르게 읽혔습니다. 유창성 점수는 ${fluency.score}점입니다.`;
           } else {
@@ -269,9 +244,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       }
       
-      feedbackText.innerHTML = feedbackMsg;
-      if (feedbackDetail) feedbackDetail.innerHTML = detailMsg;
-      feedbackTitle.scrollIntoView({ behavior: 'smooth' });
+      feedbackText.innerText = `"${feedbackMsg}"`;
+      if (feedbackDetail) feedbackDetail.innerText = detailMsg;
+      feedbackSection.scrollIntoView({ behavior: 'smooth' });
 
       // Gemini Word Recommendation (Only in Story Mode)
       if (recommendationBox) {
@@ -281,7 +256,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       
       if (currentMode === 'story' && parsed.worstWord && recommendationBox) {
         worstWordCache = parsed.worstWord;
-        recommendationText.innerHTML = "단어 추천을 생성하고 있습니다... ⏳";
+        recommendationText.innerText = "단어 추천을 생성하고 있습니다... ⏳";
         recommendationBox.style.display = 'block';
         
         const fallbackWords = [`${parsed.worstWord}와`, `${parsed.worstWord}를`, `${parsed.worstWord}도`];
@@ -314,85 +289,72 @@ document.addEventListener('DOMContentLoaded', async () => {
           recommendedWordsCache = fallbackWords.join(", ");
         }
         
-        recommendationText.innerHTML = `이런 단어들도 소리 내어 읽어볼까요? <br><span style="color:var(--color-primary-dark); font-size: 20px;">${recommendedWordsCache}</span>`;
-        practiceBtn.style.display = 'block';
+        recommendationText.innerText = `${recommendedWordsCache}`;
+        practiceBtn.style.display = 'flex';
       }
 
     } catch (err) {
       console.error(err);
-      alert('API 호출 중 오류가 발생했습니다. 브라우저 콘솔을 확인해주세요. (CORS 문제 또는 API 키 확인 필요)');
-      micBtn.innerHTML = '🎤 다시 해보기';
-      micBtn.style.background = 'var(--color-pastel-yellow-dark)';
-      micBtn.style.color = 'var(--color-pastel-text)';
-      micBtn.style.boxShadow = '0 4px 0 #e6c84c';
+      alert('API 호출 중 오류가 발생했습니다. 브라우저 콘솔을 확인해주세요.');
+      micText.innerText = '다시 해보기';
+      micIcon.innerText = 'replay';
     }
   }
 
-  // Parse CLOVA Speech assessment_details
-  // Format: "word1|{phoneme1:score, ...} word2|{...}"
-  function parseAssessmentDetails(detailsStr) {
+  function parseAssessmentDetails(detailsStr, originalSentence) {
     if (!detailsStr) return { html: '', worstWord: '', minScore: 100 };
-    
-    let html = '';
     let worstWord = '';
     let minScore = 100;
+    let wordScores = {};
 
-    // Match patterns like: word|{a(a):100, b(b):90}
     const matches = [...detailsStr.matchAll(/([^\s|]+)\|\{([^}]+)\}/g)];
     
-    if (matches.length === 0) {
-      return { html: detailsStr, worstWord: '', minScore: 100 };
-    }
-
     matches.forEach(m => {
       const word = m[1];
       const scoresStr = m[2];
-      
-      // Extract all numbers from the scoresStr
       const scoreMatches = scoresStr.match(/\d+/g);
       let avgScore = 100;
-      
       if (scoreMatches && scoreMatches.length > 0) {
         const sum = scoreMatches.reduce((acc, val) => acc + parseInt(val), 0);
         avgScore = sum / scoreMatches.length;
       }
-
-      // Track the worst pronounced word for personalized feedback
+      wordScores[word] = avgScore;
       if (avgScore < minScore && avgScore < 85) {
         minScore = avgScore;
         worstWord = word;
       }
-
-      // Highlight logic
-      if (avgScore >= 90) {
-        // Excellent: Green
-        html += `<span style="color: var(--color-success); font-weight: 600;">${word}</span> `;
-      } else if (avgScore < 75) {
-        // Needs Improvement: Red with underline
-        html += `<span style="color: var(--color-error); font-weight: 600; text-decoration: underline; text-decoration-color: var(--color-error);">${word}</span> `;
-      } else {
-        // Average: Default text color
-        html += `${word} `;
-      }
     });
 
-    return { html: html.trim(), worstWord, minScore };
+    let html = '';
+    const words = originalSentence.split(' ');
+    words.forEach((w, idx) => {
+      // Find matching word score (fuzzy match or exact)
+      // Clova might split punctuation, so remove punctuation for matching
+      const cleanW = w.replace(/[.,!?]/g, '');
+      const score = wordScores[cleanW] || wordScores[w] || 100;
+      
+      let colorClass = '';
+      if (score >= 90) colorClass = 'highlight-green';
+      else if (score < 75) colorClass = 'highlight-red';
+
+      for (let char of w) {
+        html += `<span class="letter-box ${colorClass}">${char}</span>`;
+      }
+      if (idx < words.length - 1) html += '<span class="mx-4"></span>';
+    });
+
+    return { html, worstWord, minScore };
   }
 
-  // Calculate fluency based on audio waveform pauses
   function calculateFluency(usrGraph) {
     if (!usrGraph || !usrGraph.length) return { score: 100, pauseCount: 0 };
+    const NOISE_THRESHOLD = 5;
+    const PAUSE_THRESHOLD_SAMPLES = 30;
     
-    const NOISE_THRESHOLD = 5; // amplitude < 5 is considered silence
-    const PAUSE_THRESHOLD_SAMPLES = 30; // 30 samples * 20ms = 600ms (Unnatural pause)
-    
-    // 1. Trim leading and trailing silences
     let startIndex = 0;
     while(startIndex < usrGraph.length && usrGraph[startIndex] < NOISE_THRESHOLD) startIndex++;
-    
     let endIndex = usrGraph.length - 1;
     while(endIndex >= 0 && usrGraph[endIndex] < NOISE_THRESHOLD) endIndex--;
-    
     if (startIndex >= endIndex) return { score: 100, pauseCount: 0 }; 
     
     let pauseCount = 0;
@@ -402,18 +364,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (usrGraph[i] < NOISE_THRESHOLD) {
         currentSilenceLength++;
       } else {
-        // If the silence was longer than 600ms, it's an unnatural pause
-        if (currentSilenceLength >= PAUSE_THRESHOLD_SAMPLES) {
-          pauseCount++;
-        }
+        if (currentSilenceLength >= PAUSE_THRESHOLD_SAMPLES) pauseCount++;
         currentSilenceLength = 0;
       }
     }
     
-    // Deduct 15 points per unnatural pause
-    let score = 100 - (pauseCount * 15);
-    if (score < 0) score = 0;
-    
+    let score = 100;
+    if (pauseCount === 1) score = 90;
+    else if (pauseCount === 2) score = 80;
+    else if (pauseCount === 3) score = 70;
+    else if (pauseCount >= 4) score = 60;
     return { score, pauseCount };
   }
 });
