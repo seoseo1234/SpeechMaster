@@ -1,0 +1,260 @@
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+:root {
+  /* Ink Ladder (Stayfolio inspired) */
+  --color-ink-body: #181818;
+  --color-ink-heading: #171719;
+  --color-ink-brand: #1a1a1a;
+  --color-black: #000000;
+  --color-graphite: #333333;
+  --color-muted: #6b6b6e;
+  --color-faint: #979799;
+  --color-disabled: #999999;
+  
+  /* Surfaces & Neutral */
+  --color-canvas: #ffffff;
+  --color-surface: #f2f2f2;
+  --color-surface-alt: #f5f5f5;
+  --color-hairline: #dfe0e2;
+  --color-hairline-alt: #cccccc;
+  
+  /* Slate Navy (High Grade & Teacher Mode) */
+  --color-navy: #1b2a47;
+  --color-navy-light: #2c426f;
+  --color-navy-surface: #f0f4f8;
+
+  /* Pastel (Low Grade Mode) */
+  --color-pastel-yellow: #fffdf0;
+  --color-pastel-green: #e6f7eb;
+  --color-pastel-yellow-dark: #ffe566;
+  --color-pastel-green-dark: #4caf50;
+  --color-pastel-text: #333333;
+
+  /* Accent */
+  --color-promo-blue: #017bc6;
+  --color-error: #e53935;
+  --color-success: #43a047;
+}
+
+body {
+  font-family: 'Pretendard', sans-serif;
+  background-color: var(--color-canvas);
+  color: var(--color-ink-body);
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--color-ink-heading);
+  margin: 0;
+}
+
+h2 {
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.29;
+  letter-spacing: -0.56px;
+}
+
+h3 {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -0.2px;
+  color: var(--color-graphite);
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* Utilities */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.flex { display: flex; }
+.flex-col { display: flex; flex-direction: column; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.justify-center { justify-content: center; }
+.gap-2 { gap: 8px; }
+.gap-4 { gap: 16px; }
+.gap-6 { gap: 24px; }
+.w-full { width: 100%; }
+.h-full { height: 100%; }
+
+/* Navigation */
+header {
+  border-bottom: 1px solid var(--color-hairline);
+  padding: 16px 0;
+  background: var(--color-canvas);
+}
+.nav-brand {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-ink-brand);
+}
+.nav-links a {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-ink-brand);
+  margin-left: 24px;
+  text-transform: uppercase;
+}
+
+/* Base Card (Stayfolio style: flat, no shadow, sharp corners) */
+.card {
+  background: var(--color-canvas);
+  border: 1px solid var(--color-hairline);
+  border-radius: 0;
+  padding: 24px;
+}
+
+/* Pill Controls */
+.pill {
+  border-radius: 100px;
+  border: 1px solid var(--color-hairline);
+  padding: 12px 24px;
+  background: var(--color-canvas);
+  font-size: 14px;
+  color: var(--color-ink-body);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.pill:hover {
+  background: var(--color-surface);
+}
+
+/* Solid CTA */
+.btn-solid {
+  background: var(--color-black);
+  color: var(--color-canvas);
+  border-radius: 20px;
+  padding: 8px 16px;
+  height: 40px;
+  font-size: 16px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+}
+
+/* ------------------------------------- */
+/* 저학년 모드 (Low Grade) 특화 스타일 */
+/* ------------------------------------- */
+.theme-low-grade {
+  background-color: var(--color-pastel-yellow);
+  color: var(--color-pastel-text);
+}
+.theme-low-grade header {
+  background: var(--color-pastel-green);
+  border-bottom: none;
+}
+.theme-low-grade .card {
+  border-radius: 24px;
+  border: none;
+  background: var(--color-canvas);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05); /* 약간의 그림자 허용 */
+}
+.theme-low-grade h2 {
+  font-size: 32px;
+  letter-spacing: -1px;
+}
+.theme-low-grade .btn-action {
+  background: var(--color-pastel-yellow-dark);
+  color: var(--color-pastel-text);
+  border-radius: 100px;
+  font-size: 20px;
+  padding: 16px 32px;
+  border: none;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #e6c84c;
+}
+.theme-low-grade .btn-action:active {
+  transform: translateY(4px);
+  box-shadow: none;
+}
+.highlight-correct { color: var(--color-success); font-weight: bold; }
+.highlight-error { color: var(--color-error); font-weight: bold; text-decoration: underline; text-decoration-color: var(--color-error); }
+
+/* ------------------------------------- */
+/* 고학년 모드 & 교사 대시보드 (High Grade & Teacher) */
+/* ------------------------------------- */
+.theme-high-grade {
+  background-color: var(--color-surface);
+}
+.theme-high-grade header {
+  background: var(--color-navy);
+  color: var(--color-canvas);
+  border-bottom: none;
+}
+.theme-high-grade .nav-brand, .theme-high-grade .nav-links a {
+  color: var(--color-canvas);
+}
+.theme-high-grade .card {
+  border: 1px solid var(--color-hairline);
+  background: var(--color-canvas);
+  /* 0px radius to keep Stayfolio style */
+  border-radius: 0px; 
+}
+.theme-high-grade h2 {
+  color: var(--color-navy);
+}
+
+/* Layout Specifics */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  gap: 24px;
+  margin-top: 24px;
+}
+.high-grade-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.cam-placeholder {
+  background: var(--color-surface-alt);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  border: 1px solid var(--color-hairline);
+  color: var(--color-muted);
+}
+
+.volume-indicator {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  margin-top: 16px;
+}
+.vol-bar {
+  width: 16px;
+  height: 16px;
+  background: var(--color-navy);
+}
+.vol-bar.empty { background: var(--color-hairline); }
+
+.list-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-hairline);
+  cursor: pointer;
+}
+.list-item:hover {
+  background: var(--color-surface-alt);
+}
+.list-item.active {
+  font-weight: 600;
+  background: var(--color-surface);
+}

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>저학년 모드 - AI 스피치버디</title>
+  <link rel="stylesheet" href="index.css">
+  <style>
+    .story-box {
+      font-size: 32px;
+      line-height: 1.8;
+      text-align: center;
+      padding: 60px 40px;
+      margin-bottom: 40px;
+      word-break: keep-all;
+    }
+    .mic-btn-container {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    .feedback-box {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+      background: var(--color-canvas);
+      padding: 24px;
+      border-radius: 20px;
+      border: 2px dashed var(--color-pastel-green-dark);
+    }
+    .character {
+      font-size: 48px;
+    }
+  </style>
+</head>
+<body class="theme-low-grade">
+
+  <header>
+    <div class="container flex justify-between items-center" style="color: #333">
+      <div class="nav-brand" style="font-size: 20px;">
+        <a href="index.html">🏠 홈으로</a>
+      </div>
+      <div style="font-weight: 700; font-size: 24px;">👶 AI 스피치버디</div>
+      <div class="pill" style="background: white;">⚙️ 마이크 설정</div>
+    </div>
+  </header>
+
+  <main class="container" style="padding-top: 40px; padding-bottom: 60px;">
+    
+    <div style="text-align: center; color: var(--color-muted); font-weight: 600; margin-bottom: 16px;">
+      [ 오늘의 읽기 도전! ]
+    </div>
+
+    <div class="card story-box" id="story-box">
+      "아기 다람쥐가 나무 위로 쪼르르<br>
+      올라갔습니다."
+    </div>
+
+    <div class="mic-btn-container">
+      <button class="btn-action" id="mic-btn">🎤 누르고 말하기</button>
+    </div>
+
+    <div style="text-align: center; color: var(--color-muted); font-weight: 600; margin-bottom: 16px; display: none;" id="feedback-title">
+      [ 실시간 AI 발음 피드백 ]
+    </div>
+
+    <div class="feedback-box" id="feedback-box" style="display: none;">
+      <div class="character">🤖</div>
+      <div>
+        <h3 style="margin-bottom: 8px;">도토리 요정:</h3>
+        <p style="font-size: 18px; margin: 0;" id="feedback-text"></p>
+      </div>
+    </div>
+
+  </main>
+  
+  <script type="module" src="/low-grade.js"></script>
+</body>
+</html>

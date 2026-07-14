@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>교사용 대시보드 - AI SpeechMaster PRO</title>
+  <link rel="stylesheet" href="index.css">
+  <style>
+    .student-list {
+      background: var(--color-canvas);
+      border: 1px solid var(--color-hairline);
+      height: 600px;
+      overflow-y: auto;
+    }
+    .report-panel {
+      background: var(--color-canvas);
+      border: 1px solid var(--color-hairline);
+      padding: 32px;
+      height: 600px;
+      overflow-y: auto;
+      box-sizing: border-box;
+    }
+    .chart-placeholder {
+      background: var(--color-surface-alt);
+      border: 1px dashed var(--color-hairline-alt);
+      height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-muted);
+      font-size: 14px;
+    }
+    .ai-feedback-box {
+      background: var(--color-surface);
+      border-left: 4px solid var(--color-navy);
+      padding: 20px;
+      margin-top: 24px;
+    }
+  </style>
+</head>
+<body class="theme-high-grade">
+
+  <header>
+    <div class="container flex justify-between items-center">
+      <div class="nav-brand">
+        🪄 AI SpeechMaster PRO [5학년 2반]
+      </div>
+      <div class="flex items-center gap-4">
+        <a href="index.html">🏠 HOME</a>
+        <span style="font-weight: 400; font-size: 14px; color: var(--color-hairline-alt);">[박지훈 교사 👤] (Firebase 🟢)</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="dashboard-grid">
+      
+      <!-- 사이드바: 학생 목록 -->
+      <div class="flex-col gap-4">
+        <div class="pill w-full" style="justify-content:space-between;">
+          <span>학년군 필터</span>
+          <span style="font-size:12px;">▼</span>
+        </div>
+        <div class="student-list">
+          <div style="padding: 16px; background: var(--color-surface); font-weight: bold; font-size: 14px; border-bottom: 1px solid var(--color-hairline);">
+            학생 목록 (24명)
+          </div>
+          <div class="list-item active">박지우 (선택됨)</div>
+          <div class="list-item">김민수</div>
+          <div class="list-item">이서연</div>
+          <div class="list-item">최현우</div>
+          <div class="list-item">정다은</div>
+        </div>
+      </div>
+
+      <!-- 메인 뷰: 리포트 -->
+      <div class="report-panel">
+        <div class="flex justify-between items-center" style="margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--color-hairline);">
+          <h2>박지우 학생 스피치 종합 진단 리포트</h2>
+          <span class="pill" style="padding: 6px 12px; font-size: 12px;">최근 진단: 방금 전</span>
+        </div>
+
+        <div class="flex gap-6">
+          <div class="w-full">
+            <h3 style="margin-bottom: 16px;">📊 5대 스피치 역량 프로필</h3>
+            <div class="chart-placeholder">
+              [방사형 차트 영역]<br>발음정밀도 / 속도 / 성량 / 시선 / 성량안정
+            </div>
+          </div>
+          <div class="w-full">
+            <h3 style="margin-bottom: 16px;">📈 발표 시간별 데이터 추이</h3>
+            <div class="chart-placeholder">
+              [꺾은선 그래프 영역]<br>데시벨(dB) 및 시선 유지 비율(%)
+            </div>
+          </div>
+        </div>
+
+        <div class="ai-feedback-box">
+          <div class="flex justify-between items-center" style="margin-bottom: 12px;">
+            <h3 style="font-size: 16px;">🤖 AI 나이스(NEIS) 관찰평가 추천 문구</h3>
+            <button class="btn-solid" style="height: 32px; font-size: 12px; padding: 4px 12px;">📋 생기부 문구 복사</button>
+          </div>
+          <p style="font-size: 15px; color: var(--color-ink-body); background: var(--color-canvas); padding: 16px; border: 1px solid var(--color-hairline);">
+            자신의 주장을 논리적으로 전개하는 능력이 탁월하며 발표 성량이 매우 안정적임. 다만 긴장했을 때 '어..' 등의 간투사를 반복하는 습관이 있어, 발표 시 한 문장을 끝맺고 의도적으로 1초간 쉬어가는 호흡 조절 연습을 병행한다면 완벽한 전달력을 갖출 것으로 기대됨.
+          </p>
+        </div>
+
+      </div>
+
+    </div>
+  </main>
+
+</body>
+</html>

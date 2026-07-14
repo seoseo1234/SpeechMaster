@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>AI SpeechMaster Pro</title>
+  <link rel="stylesheet" href="index.css">
+  <style>
+    .hero-section {
+      height: 60vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      border-bottom: 1px solid var(--color-hairline);
+      background: var(--color-canvas);
+    }
+    .hero-section h2 {
+      font-size: 40px;
+      margin-bottom: 16px;
+    }
+    .hero-section p {
+      color: var(--color-muted);
+      font-size: 16px;
+      margin-bottom: 40px;
+    }
+    .mode-cards {
+      display: flex;
+      gap: 24px;
+      justify-content: center;
+      padding: 64px 0;
+      background: var(--color-surface);
+    }
+    .mode-card {
+      width: 300px;
+      padding: 40px 24px;
+      text-align: center;
+      background: var(--color-canvas);
+      border: 1px solid var(--color-hairline);
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+    .mode-card:hover {
+      background: var(--color-surface-alt);
+    }
+    .mode-card h3 {
+      margin: 16px 0 8px;
+    }
+    .mode-card p {
+      color: var(--color-muted);
+      font-size: 14px;
+    }
+    .icon-placeholder {
+      font-size: 48px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="container flex justify-between items-center">
+      <div class="nav-brand">AI SPEECHMASTER PRO</div>
+      <div class="nav-links">
+        <a href="index.html">HOME</a>
+        <a href="#">ABOUT</a>
+        <a href="teacher.html">TEACHER DASHBOARD</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="hero-section">
+      <h2>스피치의 모든 것,<br>AI로 완성하는 발표의 자신감</h2>
+      <p>초등 저학년 한글 유창성부터 고학년 심화 프레젠테이션까지.</p>
+    </div>
+
+    <div class="mode-cards">
+      <a href="low-grade.html" class="mode-card">
+        <div class="icon-placeholder">👶</div>
+        <h3>저학년 모드</h3>
+        <p>AI 스피치버디와 함께<br>정확하고 즐겁게 읽기 연습을 해요.</p>
+      </a>
+      <a href="high-grade.html" class="mode-card">
+        <div class="icon-placeholder">👧</div>
+        <h3>고학년 모드</h3>
+        <p>실시간 카메라 센서와 함께<br>발표 태도와 성량을 점검해보세요.</p>
+      </a>
+    </div>
+  </main>
+
+</body>
+</html>

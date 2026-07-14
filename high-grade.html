@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>고학년 모드 - AI 스피치마스터</title>
+  <link rel="stylesheet" href="index.css">
+  <style>
+    .script-box {
+      font-size: 18px;
+      line-height: 2;
+      height: 400px;
+      overflow-y: auto;
+      background: var(--color-canvas);
+    }
+    .warning-banner {
+      background: var(--color-error);
+      color: white;
+      padding: 12px;
+      text-align: center;
+      font-weight: 600;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body class="theme-high-grade">
+
+  <header>
+    <div class="container flex justify-between items-center">
+      <div class="nav-brand">
+        <a href="index.html">🏠 홈으로</a>
+      </div>
+      <div style="font-weight: 600; font-size: 18px;">👧 AI 스피치마스터 (고학년 발표 모드)</div>
+      <div></div> <!-- spacer -->
+    </div>
+  </header>
+
+  <main class="container">
+    
+    <div class="high-grade-grid">
+      <!-- 왼쪽: 대본 -->
+      <div class="card script-box">
+        <h3 style="margin-bottom: 24px; border-bottom: 1px solid var(--color-hairline); padding-bottom: 12px;">내 발표 대본</h3>
+        <p>안녕하십니까? 오늘 저는 우리 학교 운동장 잔디 조성의 필요성에 대해 발표하겠습니다.</p>
+        <p style="background: rgba(229, 57, 53, 0.1); display: inline-block;">어.. </p> 일단 현재 우리 학교 운동장은 흙이 많아서 먼지가 날리고, <span style="background: rgba(229, 57, 53, 0.1);">음..</span> 비가 오면 물이 고여 힘듭니다...
+      </div>
+
+      <!-- 오른쪽: 카메라 & 센서 -->
+      <div class="flex-col gap-4">
+        <div class="card p-0" style="padding:0;">
+          <div class="cam-placeholder">
+            <div>
+              <div style="font-size:48px; text-align:center;">📷</div>
+              <div>실시간 웹캠 (MediaPipe 구동 중)</div>
+              <div style="text-align:center; margin-top:8px; color:var(--color-success); font-weight:bold;">🟢 정면 응시 중</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="flex justify-between items-center">
+            <span style="font-weight:600; font-size:14px;">실시간 성량 (Volume Indicator)</span>
+            <span style="font-weight:bold;">62.5 dB (안정)</span>
+          </div>
+          <div class="volume-indicator">
+            <div class="vol-bar"></div>
+            <div class="vol-bar"></div>
+            <div class="vol-bar"></div>
+            <div class="vol-bar"></div>
+            <div class="vol-bar"></div>
+            <div class="vol-bar"></div>
+            <div class="vol-bar"></div>
+            <div class="vol-bar"></div>
+            <div class="vol-bar"></div>
+            <div class="vol-bar"></div>
+            <div class="vol-bar"></div>
+            <div class="vol-bar"></div>
+            <div class="vol-bar empty"></div>
+            <div class="vol-bar empty"></div>
+            <div class="vol-bar empty"></div>
+          </div>
+        </div>
+
+        <div class="warning-banner">
+          🚨 [실시간 습관어 경고] '어..' 2회 감지
+        </div>
+      </div>
+    </div>
+
+    <div style="text-align: center; margin-top: 40px; margin-bottom: 60px;">
+      <button class="btn-solid">⏹️ 발표 종료 및 AI 분석하기</button>
+    </div>
+
+  </main>
+
+</body>
+</html>
