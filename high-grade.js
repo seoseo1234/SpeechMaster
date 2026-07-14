@@ -379,7 +379,7 @@ function endPresentation() {
   showAnalysisModal();
 }
 
-function showAnalysisModal() {
+async function showAnalysisModal() {
   const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
   const minutes = String(Math.floor(elapsedSeconds / 60)).padStart(2, '0');
   const seconds = String(elapsedSeconds % 60).padStart(2, '0');
@@ -391,11 +391,53 @@ function showAnalysisModal() {
   commentEl.classList.remove('text-primary', 'text-error');
   
   document.getElementById('report-habits').innerText = `분석 중...`;
-  
   document.getElementById('analysis-modal').classList.remove('hidden');
   
-  setTimeout(() => {
-      document.getElementById('report-habits').innerText = `제미나이 분석 결과`;
-      commentEl.innerHTML = `(여기에 녹음된 음성 파일을 기반으로 한 제미나이의 정밀 분석 결과가 나타납니다. 브라우저 인식기가 놓친 습관어들도 제미나이가 오디오를 직접 듣고 모두 잡아냅니다!)`;
-  }, 3000);
+  if (audioChunks.length === 0) {
+      document.getElementById('report-habits').innerText = `오디오 없음`;
+      commentEl.innerHTML = `녹음된 오디오가 없어 분석을 수행할 수 없습니다.`;
+      return;
+  }
+
+  try {
+      // Create audio blob
+      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+      const formData = new FormData();
+      formData.append('audio', audioBlob, 'recording.webm');
+
+      // Send to local server which then calls Gemini
+      const response = await fetch('http://localhost:3001/analyze-audio', {
+          method: 'POST',
+          body: formData
+      });
+
+      if (!response.ok) {
+          throw new Error(`Server returned ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      const counts = result.habitCounts || { uh: 0, um: 0, geu: 0 };
+      const totalHabits = counts.uh + counts.um + counts.geu;
+      
+      // Update the real-time UI counters just to sync the data
+      document.getElementById('count-uh').innerText = `${counts.uh}회`;
+      document.getElementById('count-um').innerText = `${counts.um}회`;
+      document.getElementById('count-geu').innerText = `${counts.geu}회`;
+
+      document.getElementById('report-habits').innerText = `총 ${totalHabits}회`;
+      
+      if (totalHabits === 0) {
+          commentEl.classList.add('text-primary');
+      } else if (totalHabits >= 5) {
+          commentEl.classList.add('text-error');
+      }
+      
+      commentEl.innerHTML = result.feedback;
+
+  } catch (error) {
+      console.error("Analysis Error:", error);
+      document.getElementById('report-habits').innerText = `분석 실패`;
+      commentEl.innerHTML = `<span class="text-error">오류 발생: 제미나이 분석에 실패했습니다. (${error.message})</span>`;
+  }
 }
