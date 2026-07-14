@@ -161,11 +161,9 @@ function handleWebSocketMessage(event) {
         if (response.responseType && response.responseType.includes('transcription')) {
             const tx = response.transcription;
             if (tx && tx.text) {
-                fullRecognizedText += tx.text + ' ';
-                interimText = ''; // Clear interim when final arrives
+                // We use WebKit for UI text to ensure seamless real-time typing.
+                // Clova is used here in the background for habitual word analysis.
                 checkHabitualWords(tx.text);
-                updateScriptHighlight(fullRecognizedText);
-                updateSTTUI();
             }
         }
     } catch(e) {
@@ -273,7 +271,10 @@ async function startPresentation() {
             recognition.onresult = (event) => {
                 let currentInterim = '';
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
-                    if (!event.results[i].isFinal) {
+                    if (event.results[i].isFinal) {
+                        fullRecognizedText += event.results[i][0].transcript + ' ';
+                        updateScriptHighlight(fullRecognizedText);
+                    } else {
                         currentInterim += event.results[i][0].transcript;
                     }
                 }
