@@ -36,11 +36,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   let currentXp = parseInt(localStorage.getItem('speechbuddy_xp')) || 0;
 
   function updateLevelDisplay() {
-    const levelDisplay = document.querySelector('.bg-tertiary-container');
-    if (levelDisplay) {
-      levelDisplay.innerHTML = `레벨 ${currentLevel} <span class="material-symbols-outlined" id="level-icon">stars</span>`;
-      updateLevelSpeakerIcon();
-    }
+    const levelNumber = document.getElementById('level-number');
+    if (levelNumber) levelNumber.innerText = currentLevel;
+    updateLevelSpeakerIcon();
   }
 
   function showToast(message) {
@@ -73,40 +71,40 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function updateLevelSpeakerIcon() {
     const levelIcon = document.getElementById('level-icon');
-    if (!levelIcon) return;
+    const levelContainer = document.getElementById('level-container');
+    if (!levelIcon || !levelContainer) return;
 
     let iconName = 'stars';
-    let colorClass = '';
+    let bgClass = '';
 
-    const colors = [
-      'text-red-500', 
-      'text-orange-500', 
-      'text-yellow-400', 
-      'text-green-500', 
-      'text-blue-500', 
-      'text-indigo-500', 
-      'text-purple-500'
+    const bgColors = [
+      'bg-red-500', 
+      'bg-orange-500', 
+      'bg-yellow-400', 
+      'bg-green-500', 
+      'bg-blue-500', 
+      'bg-indigo-500', 
+      'bg-purple-500'
     ];
 
     if (currentLevel >= 150) {
       iconName = 'favorite';
-      colorClass = 'text-rainbow text-4xl animate-pulse';
+      bgClass = 'bg-gradient-to-r from-violet-500 via-blue-500 to-red-500 animate-pulse';
     } else if (currentLevel >= 80) {
       iconName = 'favorite';
-      const colorIndex = Math.floor((currentLevel - 80) / 10) % colors.length;
-      colorClass = `${colors[colorIndex]} text-4xl transition-colors duration-500`;
+      const colorIndex = Math.floor((currentLevel - 80) / 10) % bgColors.length;
+      bgClass = bgColors[colorIndex];
     } else if (currentLevel >= 70) {
       iconName = 'stars';
-      colorClass = 'text-rainbow text-4xl animate-pulse';
+      bgClass = 'bg-gradient-to-r from-violet-500 via-blue-500 to-red-500 animate-pulse';
     } else {
       iconName = 'stars';
-      // 레벨 1~9: 빨강 (0), 10~19: 주황 (1), ...
-      const colorIndex = Math.floor(Math.max(0, currentLevel - 1) / 10) % colors.length;
-      colorClass = `${colors[colorIndex]} text-3xl transition-colors duration-500`;
+      const colorIndex = Math.floor(Math.max(0, currentLevel - 1) / 10) % bgColors.length;
+      bgClass = bgColors[colorIndex];
     }
 
     levelIcon.innerText = iconName;
-    levelIcon.className = `material-symbols-outlined ${colorClass}`;
+    levelContainer.className = `text-white px-4 py-2 rounded-full font-label-lg flex items-center gap-2 transition-colors duration-500 ${bgClass}`;
     levelIcon.style.fontVariationSettings = "'FILL' 1";
   }
 
