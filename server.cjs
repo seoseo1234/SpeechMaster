@@ -75,7 +75,7 @@ wss.on('connection', (ws) => {
                     transcription: { language: 'ko' },
                     semanticEpd: {
                         skipEmptyText: true,
-                        useWordEpd: true,
+                        useWordEpd: false,
                         usePeriodEpd: true,
                         gapThreshold: 500,
                         durationThreshold: 5000,

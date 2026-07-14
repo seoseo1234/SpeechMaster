@@ -8,6 +8,7 @@ let audioWorkletNode = null;
 let ws = null;
 let isPresenting = false;
 let startTime = 0;
+let recognition = null;
 
 let habitCounts = {
   uh: 0, // 어
@@ -141,32 +142,34 @@ function setupScriptEditor() {
   });
 }
 
-function handleWebSocketMessage(message) {
+let interimText = '';
+
+function updateSTTUI() {
+    sttResult.innerHTML = `<span class="text-on-surface font-medium">${fullRecognizedText}</span> <span class="text-on-surface-variant italic opacity-70">${interimText}</span>`;
+    sttResult.parentElement.scrollTop = sttResult.parentElement.scrollHeight;
+}
+
+function handleWebSocketMessage(event) {
+    if (event.data === 'ping' || event.data === 'pong') return;
     try {
-        const response = JSON.parse(message.data);
+        const response = JSON.parse(event.data);
         if (response.error) {
             console.error("Clova gRPC Error:", response.error);
             return;
         }
 
-        // Response format usually follows NestResponse config.text etc.
-        // It's a JSON string inside response.contents according to the gRPC spec.
         if (response.responseType && response.responseType.includes('transcription')) {
             const tx = response.transcription;
             if (tx && tx.text) {
-                // If it's a final or interim update (assuming Clova sends streaming updates)
-                // Clova streaming usually sends 'transcription' for final, maybe others for interim.
-                // Assuming tx.text is the final text of the chunk.
                 fullRecognizedText += tx.text + ' ';
+                interimText = ''; // Clear interim when final arrives
                 checkHabitualWords(tx.text);
                 updateScriptHighlight(fullRecognizedText);
-                
-                sttResult.innerHTML = `<span class="text-on-surface font-medium">${fullRecognizedText}</span>`;
-                sttResult.parentElement.scrollTop = sttResult.parentElement.scrollHeight;
+                updateSTTUI();
             }
         }
     } catch(e) {
-        console.error("Error parsing WebSocket message", e);
+        // console.error("Error parsing WebSocket message", e);
     }
 }
 
@@ -260,6 +263,26 @@ async function startPresentation() {
             sampleRate: 16000
         }});
         
+        // 2.5 Start WebKit Speech Recognition for real-time typing effect
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'ko-KR';
+            recognition.onresult = (event) => {
+                let currentInterim = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (!event.results[i].isFinal) {
+                        currentInterim += event.results[i][0].transcript;
+                    }
+                }
+                interimText = currentInterim;
+                updateSTTUI();
+            };
+            try { recognition.start(); } catch(e){}
+        }
+
         cameraFeed.srcObject = mediaStream;
         cameraFallback.classList.add('hidden');
         cameraFeed.classList.remove('hidden');
@@ -348,6 +371,10 @@ function endPresentation() {
   if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ action: 'stop' }));
       ws.close();
+  }
+  
+  if (typeof recognition !== 'undefined' && recognition) {
+      try { recognition.stop(); } catch(e){}
   }
   
   if (mediaStream) {
