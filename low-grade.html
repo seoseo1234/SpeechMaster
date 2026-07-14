@@ -58,20 +58,25 @@
       <button class="btn-action" id="mic-btn">🎤 누르고 말하기</button>
     </div>
 
-    <div style="text-align: center; color: var(--color-muted); font-weight: 600; margin-bottom: 16px; display: none;" id="feedback-title">
-      [ 실시간 AI 발음 피드백 ]
-    </div>
-
-    <div class="feedback-box" id="feedback-box" style="display: none;">
-      <div class="character">🤖</div>
-      <div>
-        <h3 style="margin-bottom: 8px;">도토리 요정:</h3>
-        <p style="font-size: 18px; margin: 0;" id="feedback-text"></p>
+      <!-- Feedback Box -->
+      <h2 id="feedback-title" style="display: none; margin-top: 32px; font-size: 20px; color: var(--color-primary-dark);">요정의 피드백</h2>
+      <div id="feedback-box" class="feedback-box">
+        <div class="feedback-character">
+          <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Acorn&backgroundColor=b6e3f4" alt="도토리 요정" style="width:100%; height:100%;">
+        </div>
+        <p id="feedback-text" class="feedback-text" style="margin: 0; font-size: 18px; font-weight: 500;"></p>
       </div>
-    </div>
 
-  </main>
-  
-  <script type="module" src="/low-grade.js"></script>
+      <!-- Recommendation Box -->
+      <div id="recommendation-box" style="display: none; margin-top: 16px; padding: 16px; background-color: var(--color-pastel-blue-light); border-radius: var(--radius-md); border: 2px dashed var(--color-pastel-blue-dark);">
+        <h3 style="margin-top: 0; color: var(--color-pastel-blue-dark); font-size: 16px;">💡 도토리 요정의 추천 발음 연습 단어!</h3>
+        <p id="recommendation-text" style="margin-bottom: 12px; font-size: 16px; font-weight: bold; color: var(--color-text);"></p>
+        <button id="practice-btn" style="display: none; width: 100%; padding: 10px; background: var(--color-pastel-blue-dark); color: white; font-weight: bold; font-size: 16px; border: none; border-radius: var(--radius-sm); cursor: pointer; box-shadow: 0 4px 0 #3a6b8c;">이 단어들로 연습하기 🎯</button>
+      </div>
+
+    </main>
+  </div>
+
+  <script type="module" src="./low-grade.js"></script>
 </body>
 </html>
