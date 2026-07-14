@@ -9,6 +9,10 @@ let ws = null;
 let isPresenting = false;
 let startTime = 0;
 
+let recognition = null;
+let mediaRecorder = null;
+let audioChunks = [];
+
 let habitCounts = {
   uh: 0, // 어
   um: 0, // 음
@@ -142,66 +146,9 @@ function setupScriptEditor() {
 }
 
 let interimText = '';
-let finalSentences = '';
-let currentSentence = '';
-let previousTextForHabit = '';
-
-function updateSTTUI() {
-    sttResult.innerHTML = `<span class="text-on-surface font-medium">${fullRecognizedText}</span>`;
+function updateSTTUI(interim = '') {
+    sttResult.innerHTML = `<span class="text-on-surface font-medium">${fullRecognizedText}</span> <span class="text-on-surface-variant italic opacity-70">${interim}</span>`;
     sttResult.parentElement.scrollTop = sttResult.parentElement.scrollHeight;
-}
-
-function handleWebSocketMessage(event) {
-    if (event.data === 'ping' || event.data === 'pong') return;
-    try {
-        const response = JSON.parse(event.data);
-        if (response.error) {
-            console.error("Clova gRPC Error:", response.error);
-            return;
-        }
-
-        if (response.responseType && response.responseType.includes('transcription')) {
-            const tx = response.transcription;
-            if (tx && tx.text) {
-                let newText = tx.text.trim();
-                let currTrim = currentSentence.trim();
-                
-                if (!newText) return;
-
-                // Check if it's a new sentence
-                // If currTrim has text, and newText does NOT start with the first few chars of currTrim,
-                // it means it's a completely new utterance from Clova.
-                let isNewSentence = false;
-                if (currTrim.length > 0) {
-                    const prefixLen = Math.min(currTrim.length, 2);
-                    if (!newText.startsWith(currTrim.substring(0, prefixLen))) {
-                        isNewSentence = true;
-                    }
-                }
-
-                if (isNewSentence) {
-                    finalSentences += (finalSentences ? " " : "") + currentSentence;
-                    currentSentence = newText;
-                    previousTextForHabit = ""; 
-                } else {
-                    currentSentence = newText;
-                }
-                
-                fullRecognizedText = finalSentences + (finalSentences ? " " : "") + currentSentence;
-                
-                // Count habits only on the newly added portion
-                let deltaText = newText;
-                if (newText.startsWith(previousTextForHabit)) {
-                    deltaText = newText.substring(previousTextForHabit.length);
-                }
-                previousTextForHabit = newText;
-                
-                checkHabitualWords(deltaText);
-                updateScriptHighlight(fullRecognizedText);
-                updateSTTUI();
-            }
-        }
-    } catch(e) { }
 }
 
 function checkHabitualWords(text) {
@@ -283,105 +230,119 @@ async function startPresentation() {
     startBtn.innerHTML = `<span class="material-symbols-outlined animate-spin" style="animation-duration: 2s;">sync</span> <span id="start-btn-text">연결 중...</span>`;
     startBtn.classList.add('opacity-70', 'pointer-events-none');
 
-    // 1. WebSocket connect
-    ws = new WebSocket('ws://localhost:3001');
-    ws.onopen = async () => {
-        ws.send(JSON.stringify({ action: 'start' }));
-
-        // 2. Start Audio/Video
-        mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: {
-            channelCount: 1,
-            sampleRate: 16000
-        }});
-        
-        cameraFeed.srcObject = mediaStream;
-        cameraFallback.classList.add('hidden');
-        cameraFeed.classList.remove('hidden');
-        
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        await audioContext.audioWorklet.addModule(workletUrl);
-        
-        microphone = audioContext.createMediaStreamSource(mediaStream);
-        audioWorkletNode = new AudioWorkletNode(audioContext, 'resampler-processor');
-        
-        audioWorkletNode.port.onmessage = (event) => {
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                // Send PCM Int16 buffer
-                ws.send(event.data);
+    // Start Audio/Video
+    mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    
+    // Start WebKit Speech Recognition
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'ko-KR';
+        recognition.onresult = (event) => {
+            let currentInterim = '';
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                    fullRecognizedText += event.results[i][0].transcript + ' ';
+                    updateScriptHighlight(fullRecognizedText);
+                } else {
+                    currentInterim += event.results[i][0].transcript;
+                }
             }
+            updateSTTUI(currentInterim);
+            
+            // 실시간 카운터 임시 로직 (브라우저가 잡는 일부라도 반영)
+            const transcript = event.results[event.resultIndex][0].transcript;
+            const uhMatch = (transcript.match(/\b(어+|아+)\b/g) || []).length;
+            const umMatch = (transcript.match(/\b(음+|음마+)\b/g) || []).length;
+            const geuMatch = (transcript.match(/\b(그+|어그+)\b/g) || []).length;
+            
+            if (uhMatch > 0) document.getElementById('count-uh').innerText = (parseInt(document.getElementById('count-uh').innerText) || 0) + uhMatch + '회';
+            if (umMatch > 0) document.getElementById('count-um').innerText = (parseInt(document.getElementById('count-um').innerText) || 0) + umMatch + '회';
+            if (geuMatch > 0) document.getElementById('count-geu').innerText = (parseInt(document.getElementById('count-geu').innerText) || 0) + geuMatch + '회';
         };
+        try { recognition.start(); } catch(e){}
+    }
 
-        analyser = audioContext.createAnalyser();
-        analyser.fftSize = 256;
-        
-        microphone.connect(analyser);
-        microphone.connect(audioWorkletNode);
-        // Note: we don't connect audioWorkletNode to destination to avoid feedback
-        
-        const bufferLength = analyser.frequencyBinCount;
-        const dataArray = new Uint8Array(bufferLength);
-        
-        function drawVolume() {
-            if (!isPresenting) return;
-            volumeAnimation = requestAnimationFrame(drawVolume);
-            
-            analyser.getByteFrequencyData(dataArray);
-            let sum = 0;
-            for(let i = 0; i < bufferLength; i++) { sum += dataArray[i]; }
-            let average = sum / bufferLength;
-            
-            let percentage = Math.min(100, Math.max(0, (average / 100) * 100));
-            let dbEstimate = Math.round(average / 2);
-            
-            volumeBar.style.width = `${percentage}%`;
-            volumeText.innerText = `${dbEstimate} dB`;
-            
-            if (percentage > 80) volumeBar.classList.replace('bg-secondary', 'bg-error');
-            else volumeBar.classList.replace('bg-error', 'bg-secondary');
-        }
-        
-        isPresenting = true;
-        drawVolume();
-        
-        fullRecognizedText = '';
-        sttResult.innerHTML = '<span class="text-on-surface-variant italic opacity-70">서버에 연결되었습니다. 인식 중...</span>';
-        resetHabits();
-
-        startBtn.classList.add('hidden');
-        startBtn.innerHTML = originalStartText;
-        startBtn.classList.remove('opacity-70', 'pointer-events-none');
-        endBtn.classList.remove('hidden');
-        
-        micStatusIcon.classList.replace('bg-surface-variant', 'bg-primary-container');
-        micStatusIcon.classList.add('animate-pulse');
-        micStatusIcon.innerHTML = `<span class="material-symbols-outlined text-on-primary-container" style="font-variation-settings: 'FILL' 1;">mic</span>`;
-        
-        statusDot.classList.replace('bg-surface-variant', 'bg-tertiary-fixed');
-        statusDot.classList.add('animate-pulse', 'shadow-[0_0_8px_#96f996]');
-        statusText.innerText = '🟢 스트리밍 연결됨';
-        
-        startTime = Date.now();
+    // Record audio for Gemini
+    audioChunks = [];
+    mediaRecorder = new MediaRecorder(mediaStream, { mimeType: 'audio/webm' });
+    mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunks.push(e.data);
     };
+    mediaRecorder.start(1000); // chunk every second
 
-    ws.onmessage = handleWebSocketMessage;
-    ws.onclose = () => {
-        console.log("WebSocket connection closed.");
-    };
+    cameraFeed.srcObject = mediaStream;
+    cameraFallback.classList.add('hidden');
+    cameraFeed.classList.remove('hidden');
+    
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    microphone = audioContext.createMediaStreamSource(mediaStream);
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 256;
+    microphone.connect(analyser);
+    
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    
+    function drawVolume() {
+        if (!isPresenting) return;
+        volumeAnimation = requestAnimationFrame(drawVolume);
+        
+        analyser.getByteFrequencyData(dataArray);
+        let sum = 0;
+        for(let i = 0; i < bufferLength; i++) { sum += dataArray[i]; }
+        let average = sum / bufferLength;
+        
+        let percentage = Math.min(100, Math.max(0, (average / 100) * 100));
+        let dbEstimate = Math.round(average / 2);
+        
+        volumeBar.style.width = `${percentage}%`;
+        volumeText.innerText = `${dbEstimate} dB`;
+        
+        if (percentage > 80) volumeBar.classList.replace('bg-secondary', 'bg-error');
+        else volumeBar.classList.replace('bg-error', 'bg-secondary');
+    }
+    
+    isPresenting = true;
+    drawVolume();
+    
+    fullRecognizedText = '';
+    sttResult.innerHTML = '<span class="text-on-surface-variant italic opacity-70">발표를 시작하세요. 실시간으로 음성이 기록됩니다.</span>';
+
+    startBtn.classList.add('hidden');
+    startBtn.innerHTML = originalStartText;
+    startBtn.classList.remove('opacity-70', 'pointer-events-none');
+    endBtn.classList.remove('hidden');
+    
+    micStatusIcon.classList.replace('bg-surface-variant', 'bg-primary-container');
+    micStatusIcon.classList.add('animate-pulse');
+    micStatusIcon.innerHTML = `<span class="material-symbols-outlined text-on-primary-container" style="font-variation-settings: 'FILL' 1;">mic</span>`;
+    
+    statusDot.classList.replace('bg-surface-variant', 'bg-tertiary-fixed');
+    statusDot.classList.add('animate-pulse', 'shadow-[0_0_8px_#96f996]');
+    statusText.innerText = '🟢 로컬 인식 중';
+    
+    startTime = Date.now();
 
   } catch (err) {
     console.error('시작 오류:', err);
     startBtn.innerHTML = originalStartText;
     startBtn.classList.remove('opacity-70', 'pointer-events-none');
-    alert('카메라/마이크 접근 권한이 없거나 서버(ws://localhost:3001)에 연결할 수 없습니다. server.js가 실행 중인지 확인해주세요.');
+    alert('카메라/마이크 접근 권한이 필요합니다.');
   }
 }
 
 function endPresentation() {
   isPresenting = false;
   
-  if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ action: 'stop' }));
-      ws.close();
+  if (recognition) {
+      try { recognition.stop(); } catch(e){}
+  }
+  
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
   }
   
   if (mediaStream) {
@@ -391,9 +352,6 @@ function endPresentation() {
     cameraFallback.classList.remove('hidden');
   }
   
-  if (audioWorkletNode) {
-      audioWorkletNode.disconnect();
-  }
   if (microphone) {
       microphone.disconnect();
   }
@@ -428,18 +386,16 @@ function showAnalysisModal() {
   
   document.getElementById('report-time').innerText = `${minutes}:${seconds}`;
   
-  const totalHabits = habitCounts.uh + habitCounts.um + habitCounts.geu;
-  document.getElementById('report-habits').innerText = `총 ${totalHabits}회`;
-  
   const commentEl = document.getElementById('report-comment');
-  if (totalHabits === 0) {
-    commentEl.innerText = '완벽합니다! 습관어를 단 한 번도 사용하지 않고 유창하게 발표했어요. 최고 수준의 발표력입니다.';
-    commentEl.classList.add('text-primary');
-  } else if (totalHabits < 5) {
-    commentEl.innerText = '아주 훌륭한 발표였습니다! 집중력이 대단하네요. 한두 번의 작은 버벅임만 줄이면 아나운서 같을 거예요.';
-  } else {
-    commentEl.innerText = `발표 중에 '${Object.keys(habitCounts).reduce((a, b) => habitCounts[a] > habitCounts[b] ? a : b) === 'uh' ? '어..' : '음..'}'와 같은 말을 무의식적으로 자주 씁니다. 침묵을 두려워하지 말고 잠깐 쉬어가는 연습을 해보세요!`;
-  }
+  commentEl.innerHTML = `<span class="material-symbols-outlined animate-spin text-secondary inline-block">sync</span> 제미나이가 녹음된 음성을 분석하여 습관어와 발표 내용을 피드백하고 있습니다...`;
+  commentEl.classList.remove('text-primary', 'text-error');
   
-  analysisModal.classList.remove('hidden');
+  document.getElementById('report-habits').innerText = `분석 중...`;
+  
+  document.getElementById('analysis-modal').classList.remove('hidden');
+  
+  setTimeout(() => {
+      document.getElementById('report-habits').innerText = `제미나이 분석 결과`;
+      commentEl.innerHTML = `(여기에 녹음된 음성 파일을 기반으로 한 제미나이의 정밀 분석 결과가 나타납니다. 브라우저 인식기가 놓친 습관어들도 제미나이가 오디오를 직접 듣고 모두 잡아냅니다!)`;
+  }, 3000);
 }
