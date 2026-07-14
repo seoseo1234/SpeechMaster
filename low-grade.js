@@ -660,6 +660,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     else if (pauseCount === 3) score = 70;
     else if (pauseCount >= 4) score = 60;
     
+    // Calculate Reading Speed (Characters Per Second)
+    // 50 samples = 1 second
+    const durationSeconds = (endIndex - startIndex) / 50;
+    // Count characters excluding spaces
+    const charCount = targetSentence.replace(/\s/g, '').length;
+    const charsPerSecond = charCount / durationSeconds;
+    
+    // If reading is very slow (less than 1.5 characters per second), apply penalty
+    if (durationSeconds > 1 && charsPerSecond < 1.5) {
+      score -= 15;
+      if (score < 0) score = 0;
+    }
+    
     return { score, pauseCount };
   }
 });
