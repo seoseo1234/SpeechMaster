@@ -125,7 +125,8 @@
     </header>
 
     <!-- Main Content Canvas -->
-    <main class="flex-grow flex flex-col md:flex-row p-4 gap-4 h-[calc(100vh-160px)] overflow-hidden">
+    <!-- Main Content Canvas -->
+    <main class="flex-grow flex flex-col md:flex-row p-4 gap-4 h-[calc(100vh-200px)] overflow-hidden">
         <!-- Left Side: Script Section -->
         <section class="w-full md:w-[48%] flex flex-col gap-4 h-full">
             <!-- Title Box -->
@@ -163,7 +164,7 @@
         <!-- Right Side: Camera & Sensors -->
         <section class="flex-1 flex flex-col gap-4 h-full">
             <!-- Camera Feed -->
-            <div class="bg-inverse-surface rounded-lg relative overflow-hidden flex-shrink-0 shadow-[4px_4px_0px_#303129] h-48 md:h-56">
+            <div class="bg-inverse-surface rounded-lg relative overflow-hidden flex-shrink-0 shadow-[4px_4px_0px_#303129] h-48 md:h-64 aspect-[9/16] mx-auto border-2 border-outline-variant">
                 <div class="absolute inset-0 z-0">
                     <video id="camera-feed" class="w-full h-full object-cover transform scale-x-[-1]" autoplay muted playsinline></video>
                     <!-- Fallback image shown if camera fails -->
@@ -171,32 +172,32 @@
                 </div>
                 
                 <!-- Overlay: Posture/Gaze status -->
-                <div id="status-overlay" class="absolute top-2 left-2 z-20 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20">
-                    <div id="status-dot" class="w-2.5 h-2.5 bg-surface-variant rounded-full"></div>
-                    <span id="status-text" class="text-white text-sm font-bold">대기 중</span>
+                <div id="status-overlay" class="absolute top-2 left-2 z-20 flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-2 py-1 rounded-full border border-white/20">
+                    <div id="status-dot" class="w-2 h-2 bg-surface-variant rounded-full"></div>
+                    <span id="status-text" class="text-white text-xs font-bold">대기 중</span>
                 </div>
                 
                 <div class="absolute bottom-2 right-2 z-20">
-                    <div class="bg-secondary px-3 py-1 rounded text-white text-xs font-bold uppercase tracking-widest flex items-center gap-1">
-                        <span class="material-symbols-outlined text-sm">videocam</span> Live
+                    <div class="bg-secondary px-2 py-0.5 rounded text-white text-[10px] font-bold uppercase tracking-widest flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[10px]">videocam</span> Live
                     </div>
                 </div>
             </div>
 
             <!-- Volume Indicator -->
             <div class="bg-white border-2 border-outline-variant rounded-lg p-3 shadow-[4px_4px_0px_#d0c6ab] shrink-0">
-                <div class="flex justify-between items-center mb-2">
+                <div class="flex justify-between items-center mb-1">
                     <h3 class="font-label-lg text-label-lg text-on-surface-variant flex items-center gap-2">
-                        <span class="material-symbols-outlined text-secondary">volume_up</span> 음성 크기 (Volume)
+                        <span class="material-symbols-outlined text-secondary text-base">volume_up</span> 음성 크기
                     </h3>
-                    <span id="volume-text" class="text-secondary font-bold whitespace-nowrap">0 dB</span>
+                    <span id="volume-text" class="text-secondary font-bold text-sm">0 dB</span>
                 </div>
-                <div class="h-4 bg-surface-container-highest rounded-full overflow-hidden border border-outline-variant">
+                <div class="h-3 bg-surface-container-highest rounded-full overflow-hidden border border-outline-variant">
                     <div id="volume-bar" class="h-full bg-secondary volume-bar-pulse relative w-0">
                         <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
                     </div>
                 </div>
-                <div class="flex justify-between mt-1 text-[10px] text-outline font-bold uppercase">
+                <div class="flex justify-between mt-1 text-[9px] text-outline font-bold uppercase">
                     <span>작음</span>
                     <span>적절함</span>
                     <span>큼</span>
@@ -207,36 +208,36 @@
             <div class="bg-white border-2 border-outline-variant rounded-lg p-3 flex-grow shadow-[4px_4px_0px_#d0c6ab] flex flex-col min-h-0">
                 <div class="flex justify-between items-center mb-2 shrink-0">
                     <h3 class="font-label-lg text-label-lg text-on-surface-variant flex items-center gap-2">
-                        <span class="material-symbols-outlined text-error">warning</span> 실시간 습관어 모니터링
+                        <span class="material-symbols-outlined text-error text-base">warning</span> 습관어 모니터링
                     </h3>
                     <button id="reset-habit-btn" class="text-xs font-bold text-outline hover:text-secondary underline">초기화</button>
                 </div>
                 
-                <div class="space-y-2 overflow-y-auto custom-scroll" id="habitual-word-list">
+                <div class="space-y-1.5 overflow-y-auto custom-scroll" id="habitual-word-list">
                     <!-- Dynamic items will be placed here -->
-                    <div id="habit-item-uh" class="flex items-center justify-between p-2 bg-surface-container rounded-lg border border-outline-variant transition-colors">
+                    <div id="habit-item-uh" class="flex items-center justify-between px-3 py-1.5 bg-surface-container rounded-lg border border-outline-variant transition-colors">
                         <div class="flex items-center gap-3">
-                            <span class="text-headline-md font-bold text-on-surface-variant">'어..'</span>
+                            <span class="text-title-md font-bold text-on-surface-variant">'어..'</span>
                         </div>
-                        <span id="count-uh" class="text-on-surface-variant font-extrabold text-2xl">0회</span>
+                        <span id="count-uh" class="text-on-surface-variant font-extrabold text-xl">0회</span>
                     </div>
-                    <div id="habit-item-um" class="flex items-center justify-between p-2 bg-surface-container rounded-lg border border-outline-variant transition-colors">
+                    <div id="habit-item-um" class="flex items-center justify-between px-3 py-1.5 bg-surface-container rounded-lg border border-outline-variant transition-colors">
                         <div class="flex items-center gap-3">
-                            <span class="text-headline-md font-bold text-on-surface-variant">'음..'</span>
+                            <span class="text-title-md font-bold text-on-surface-variant">'음..'</span>
                         </div>
-                        <span id="count-um" class="text-on-surface-variant font-extrabold text-2xl">0회</span>
+                        <span id="count-um" class="text-on-surface-variant font-extrabold text-xl">0회</span>
                     </div>
-                    <div id="habit-item-geu" class="flex items-center justify-between p-2 bg-surface-container rounded-lg border border-outline-variant transition-colors">
+                    <div id="habit-item-geu" class="flex items-center justify-between px-3 py-1.5 bg-surface-container rounded-lg border border-outline-variant transition-colors">
                         <div class="flex items-center gap-3">
-                            <span class="text-headline-md font-bold text-on-surface-variant">'그..'</span>
+                            <span class="text-title-md font-bold text-on-surface-variant">'그..'</span>
                         </div>
-                        <span id="count-geu" class="text-on-surface-variant font-extrabold text-2xl">0회</span>
+                        <span id="count-geu" class="text-on-surface-variant font-extrabold text-xl">0회</span>
                     </div>
                 </div>
                 
-                <div class="mt-auto pt-2 bg-secondary-fixed/20 rounded-lg px-3 pb-2 shrink-0">
-                    <p class="text-xs text-secondary leading-tight font-medium mt-2">
-                        💡 <span class="font-bold">Pro Tip:</span> 침묵은 실수가 아닙니다. 멈추어 호흡해 보세요.
+                <div class="mt-auto pt-2 shrink-0">
+                    <p class="text-xs text-secondary bg-secondary-fixed/30 rounded-lg px-2 py-1.5 font-medium flex items-center gap-1">
+                        💡 침묵은 실수가 아닙니다. 멈추어 호흡하세요.
                     </p>
                 </div>
             </div>

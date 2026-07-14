@@ -74,11 +74,11 @@ wss.on('connection', (ws) => {
                 const configStr = JSON.stringify({
                     transcription: { language: 'ko' },
                     semanticEpd: {
-                        skipEmptyText: false,
-                        useWordEpd: false,
+                        skipEmptyText: true,
+                        useWordEpd: true,
                         usePeriodEpd: true,
-                        gapThreshold: 2000,
-                        durationThreshold: 20000,
+                        gapThreshold: 500,
+                        durationThreshold: 5000,
                         syllableThreshold: 0
                     }
                 });
