@@ -9,6 +9,22 @@ let practiceAttemptCount = 0;
 let recommendedWordsCache = "";
 let worstWordCache = "";
 
+let appSettings = JSON.parse(localStorage.getItem('speechbuddy_settings')) || {
+  name: '',
+  fairy: 'acorn',
+  theme: 'default',
+  sound: true
+};
+let wrongWords = JSON.parse(localStorage.getItem('speechbuddy_wrong_words')) || [];
+const successAudio = new Audio('https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3');
+
+function playSuccessSound() {
+  if (appSettings.sound) {
+    successAudio.currentTime = 0;
+    successAudio.play().catch(()=>{});
+  }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   let currentLevel = parseInt(localStorage.getItem('speechbuddy_level')) || 1;
   let currentXp = parseInt(localStorage.getItem('speechbuddy_xp')) || 0;
@@ -41,12 +57,159 @@ document.addEventListener('DOMContentLoaded', async () => {
       localStorage.setItem('speechbuddy_xp', currentXp);
       updateLevelDisplay();
       showToast(`축하합니다! 레벨 ${currentLevel}(으)로 올랐어요!`);
+      playSuccessSound();
     } else {
       localStorage.setItem('speechbuddy_xp', currentXp);
     }
   }
 
   updateLevelDisplay();
+
+  const settingsBtn = document.getElementById('settings-btn');
+  const settingsModal = document.getElementById('settings-modal');
+  const closeSettings = document.getElementById('close-settings');
+  const notesBtn = document.getElementById('notes-btn');
+  const notesModal = document.getElementById('notes-modal');
+  const closeNotes = document.getElementById('close-notes');
+
+  const userNameInput = document.getElementById('user-name-input');
+  const soundToggle = document.getElementById('sound-toggle');
+  const themeBtns = document.querySelectorAll('.theme-btn');
+  const fairyRadios = document.querySelectorAll('input[name="fairy"]');
+  const wrongWordsList = document.getElementById('wrong-words-list');
+  const clearNotesBtn = document.getElementById('clear-notes-btn');
+
+  // Load Settings
+  if (userNameInput) userNameInput.value = appSettings.name;
+  if (soundToggle) soundToggle.checked = appSettings.sound;
+  const activeFairyRadio = document.querySelector(`input[name="fairy"][value="${appSettings.fairy}"]`);
+  if (activeFairyRadio) activeFairyRadio.checked = true;
+  applyTheme(appSettings.theme);
+
+  function saveSettings() {
+    localStorage.setItem('speechbuddy_settings', JSON.stringify(appSettings));
+  }
+
+  function applyTheme(theme) {
+    const htmlElement = document.documentElement;
+    htmlElement.className = 'light'; 
+    if (theme === 'mint') {
+      htmlElement.style.setProperty('--color-surface', '#e0f7fa');
+      htmlElement.style.setProperty('--color-surface-container-lowest', '#b2ebf2');
+    } else if (theme === 'pink') {
+      htmlElement.style.setProperty('--color-surface', '#fce4ec');
+      htmlElement.style.setProperty('--color-surface-container-lowest', '#f8bbd0');
+    } else {
+      htmlElement.style.setProperty('--color-surface', '#fbfaee');
+      htmlElement.style.setProperty('--color-surface-container-lowest', '#ffffff');
+    }
+  }
+
+  if (userNameInput) userNameInput.addEventListener('input', (e) => {
+    appSettings.name = e.target.value;
+    saveSettings();
+    updateNameUI();
+  });
+  if (soundToggle) soundToggle.addEventListener('change', (e) => {
+    appSettings.sound = e.target.checked;
+    saveSettings();
+  });
+  fairyRadios.forEach(r => r.addEventListener('change', (e) => {
+    appSettings.fairy = e.target.value;
+    saveSettings();
+    updateFairyUI();
+  }));
+  themeBtns.forEach(btn => btn.addEventListener('click', (e) => {
+    appSettings.theme = e.target.dataset.theme;
+    saveSettings();
+    applyTheme(appSettings.theme);
+  }));
+
+  function updateNameUI() {
+    const headerTitle = document.querySelector('h1.font-headline-md');
+    if (headerTitle) {
+      if (appSettings.name) {
+        headerTitle.innerText = `${appSettings.name}의 스피치버디 (저학년 모드)`;
+      } else {
+        headerTitle.innerText = `AI 스피치버디 (저학년 모드)`;
+      }
+    }
+  }
+  updateNameUI();
+
+  function updateFairyUI() {
+    const fairyAvatar = document.querySelector('.bg-primary-container.rounded-full');
+    const fairyName = document.querySelector('.text-primary-dark');
+    if (!fairyAvatar || !fairyName) return;
+
+    if (appSettings.fairy === 'star') {
+      fairyAvatar.innerHTML = '<span class="text-3xl">⭐</span>';
+      fairyName.innerText = '별 요정';
+    } else if (appSettings.fairy === 'cloud') {
+      fairyAvatar.innerHTML = '<span class="text-3xl">☁️</span>';
+      fairyName.innerText = '구름 요정';
+    } else {
+      fairyAvatar.innerHTML = '<span class="text-3xl">🌰</span>';
+      fairyName.innerText = '도토리 요정';
+    }
+  }
+  updateFairyUI();
+
+  if (settingsBtn) settingsBtn.addEventListener('click', () => settingsModal.classList.remove('hidden'));
+  if (closeSettings) closeSettings.addEventListener('click', () => settingsModal.classList.add('hidden'));
+  
+  if (notesBtn) notesBtn.addEventListener('click', () => {
+    renderWrongWords();
+    notesModal.classList.remove('hidden');
+  });
+  if (closeNotes) closeNotes.addEventListener('click', () => notesModal.classList.add('hidden'));
+
+  function addWrongWord(word) {
+    if (!word) return;
+    if (!wrongWords.includes(word)) {
+      wrongWords.push(word);
+      localStorage.setItem('speechbuddy_wrong_words', JSON.stringify(wrongWords));
+    }
+  }
+
+  function renderWrongWords() {
+    if (!wrongWordsList) return;
+    wrongWordsList.innerHTML = '';
+    if (wrongWords.length === 0) {
+      wrongWordsList.innerHTML = '<p class="text-center text-outline py-8 font-body-lg">아직 오답 기록이 없어요!</p>';
+      return;
+    }
+    wrongWords.forEach(w => {
+      const div = document.createElement('div');
+      div.className = 'flex items-center justify-between bg-surface-container-low p-4 rounded-xl border border-outline-variant';
+      div.innerHTML = `
+        <span class="font-headline-md text-xl">${w}</span>
+        <button class="practice-word-btn px-4 py-2 bg-secondary text-on-secondary rounded-lg font-bold hover:bg-secondary-dark transition-colors" data-word="${w}">연습하기</button>
+      `;
+      wrongWordsList.appendChild(div);
+    });
+
+    document.querySelectorAll('.practice-word-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const w = e.target.dataset.word;
+        notesModal.classList.add('hidden');
+        currentMode = 'practice';
+        practiceAttemptCount = 0;
+        targetSentence = w;
+        renderSentence(targetSentence);
+        if (recommendationBox) recommendationBox.style.display = 'none';
+        if (feedbackSection) feedbackSection.style.display = 'none';
+        micText.innerText = '연습 시작하기';
+        micIcon.innerText = 'mic';
+      });
+    });
+  }
+
+  if (clearNotesBtn) clearNotesBtn.addEventListener('click', () => {
+    wrongWords = [];
+    localStorage.removeItem('speechbuddy_wrong_words');
+    renderWrongWords();
+  });
 
   const micBtn = document.getElementById('mic-btn');
   const micIcon = document.getElementById('mic-icon');
@@ -269,6 +432,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       const highlightedText = parsed.html || `<span class="text-error font-bold">음성이 인식되지 않았습니다.</span>`;
       
       const fluency = calculateFluency(usrGraph);
+
+      if (score >= 80) {
+        playSuccessSound();
+      }
+      if (score < 80 && parsed.worstWord) {
+        addWrongWord(parsed.worstWord);
+      }
 
       // Restore button text
       micText.innerText = '다시 해보기';
