@@ -70,9 +70,6 @@ async function processImage(inputPath, outputPath) {
   }
 }
 
-const cloudSrc = 'C:\\Users\\user\\.gemini\\antigravity-ide\\brain\\2cecdbcc-3710-4270-81cd-9df2370edf7e\\cloud_green_bg_1784033506615.png';
-const starSrc = 'C:\\Users\\user\\.gemini\\antigravity-ide\\brain\\2cecdbcc-3710-4270-81cd-9df2370edf7e\\star_green_bg_1784033492276.png';
+const acornSrc = 'C:\\Users\\user\\.gemini\\antigravity-ide\\brain\\2cecdbcc-3710-4270-81cd-9df2370edf7e\\acorn_green_bg_1784033809817.png';
 
-processImage(cloudSrc, 'public/cloud_fairy.png').then(() => {
-  processImage(starSrc, 'public/star_fairy.png');
-});
+processImage(acornSrc, 'public/acorn_fairy.png');

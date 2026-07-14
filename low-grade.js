@@ -167,7 +167,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       fairyImg.src = '/cloud_fairy.png';
       fairyName.innerText = '구름 요정';
     } else {
-      fairyImg.src = 'https://lh3.googleusercontent.com/aida-public/AB6AXuBnyKAcpBdpALAMrY5wU0_mKqXcxmEHcuKMwPEA8g4Rpue_UFZzwreswCtEnBT8mtKAG3-6O4gh_E5RQxfV-AYNWNL0XQ5EazEuEDL5SlHfo8izfO2TRZs4a_1_hucpbKvfbd_fWja5K6UzesXpcuKwPQ8drVwFs21MdMXCfxsAMg-kHUVTDCGcNAcj_vRyUfZ5T25AFzfXigScRbbZeWUTEp1xn5UuDanh-YeVGfbj8t92wP13sLXJPkBquoeXaO_X7M8Hg9yHbg';
+      fairyImg.src = '/acorn_fairy.png';
       fairyName.innerText = '도토리 요정';
     }
   }
