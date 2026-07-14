@@ -8,7 +8,6 @@ let audioWorkletNode = null;
 let ws = null;
 let isPresenting = false;
 let startTime = 0;
-let recognition = null;
 
 let habitCounts = {
   uh: 0, // 어
@@ -143,9 +142,12 @@ function setupScriptEditor() {
 }
 
 let interimText = '';
+let finalSentences = '';
+let currentSentence = '';
+let previousTextForHabit = '';
 
 function updateSTTUI() {
-    sttResult.innerHTML = `<span class="text-on-surface font-medium">${fullRecognizedText}</span> <span class="text-on-surface-variant italic opacity-70">${interimText}</span>`;
+    sttResult.innerHTML = `<span class="text-on-surface font-medium">${fullRecognizedText}</span>`;
     sttResult.parentElement.scrollTop = sttResult.parentElement.scrollHeight;
 }
 
@@ -161,14 +163,45 @@ function handleWebSocketMessage(event) {
         if (response.responseType && response.responseType.includes('transcription')) {
             const tx = response.transcription;
             if (tx && tx.text) {
-                // We use WebKit for UI text to ensure seamless real-time typing.
-                // Clova is used here in the background for habitual word analysis.
-                checkHabitualWords(tx.text);
+                let newText = tx.text.trim();
+                let currTrim = currentSentence.trim();
+                
+                if (!newText) return;
+
+                // Check if it's a new sentence
+                // If currTrim has text, and newText does NOT start with the first few chars of currTrim,
+                // it means it's a completely new utterance from Clova.
+                let isNewSentence = false;
+                if (currTrim.length > 0) {
+                    const prefixLen = Math.min(currTrim.length, 2);
+                    if (!newText.startsWith(currTrim.substring(0, prefixLen))) {
+                        isNewSentence = true;
+                    }
+                }
+
+                if (isNewSentence) {
+                    finalSentences += (finalSentences ? " " : "") + currentSentence;
+                    currentSentence = newText;
+                    previousTextForHabit = ""; 
+                } else {
+                    currentSentence = newText;
+                }
+                
+                fullRecognizedText = finalSentences + (finalSentences ? " " : "") + currentSentence;
+                
+                // Count habits only on the newly added portion
+                let deltaText = newText;
+                if (newText.startsWith(previousTextForHabit)) {
+                    deltaText = newText.substring(previousTextForHabit.length);
+                }
+                previousTextForHabit = newText;
+                
+                checkHabitualWords(deltaText);
+                updateScriptHighlight(fullRecognizedText);
+                updateSTTUI();
             }
         }
-    } catch(e) {
-        // console.error("Error parsing WebSocket message", e);
-    }
+    } catch(e) { }
 }
 
 function checkHabitualWords(text) {
@@ -261,29 +294,6 @@ async function startPresentation() {
             sampleRate: 16000
         }});
         
-        // 2.5 Start WebKit Speech Recognition for real-time typing effect
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (SpeechRecognition) {
-            recognition = new SpeechRecognition();
-            recognition.continuous = true;
-            recognition.interimResults = true;
-            recognition.lang = 'ko-KR';
-            recognition.onresult = (event) => {
-                let currentInterim = '';
-                for (let i = event.resultIndex; i < event.results.length; ++i) {
-                    if (event.results[i].isFinal) {
-                        fullRecognizedText += event.results[i][0].transcript + ' ';
-                        updateScriptHighlight(fullRecognizedText);
-                    } else {
-                        currentInterim += event.results[i][0].transcript;
-                    }
-                }
-                interimText = currentInterim;
-                updateSTTUI();
-            };
-            try { recognition.start(); } catch(e){}
-        }
-
         cameraFeed.srcObject = mediaStream;
         cameraFallback.classList.add('hidden');
         cameraFeed.classList.remove('hidden');
@@ -372,10 +382,6 @@ function endPresentation() {
   if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ action: 'stop' }));
       ws.close();
-  }
-  
-  if (typeof recognition !== 'undefined' && recognition) {
-      try { recognition.stop(); } catch(e){}
   }
   
   if (mediaStream) {
