@@ -224,14 +224,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       micBtn.style.color = 'var(--color-pastel-text)';
       micBtn.style.boxShadow = '0 4px 0 #e6c84c';
 
-      feedbackTitle.style.display = 'block';
-      feedbackBox.style.display = 'flex';
-      
+      const feedbackDetail = document.getElementById('feedback-detail');
       let feedbackMsg = "";
+      let detailMsg = "";
 
       if (currentMode === 'practice') {
         if (score >= 90) {
           feedbackMsg = `"우와, 정말 대단해! 오늘 어려운 글자 '${worstWordCache}'(을)를 완벽하게 마스터했어! 발음 점수 ${score}점!"`;
+          detailMsg = `별 요정이 ${score}점을 주었어요! 이제 어떤 단어든 자신감 있게 읽을 수 있어요.`;
           currentMode = 'finished';
           micBtn.innerHTML = '✨ 새로운 지문 도전하기';
           micBtn.style.background = 'var(--color-success)';
@@ -239,24 +239,35 @@ document.addEventListener('DOMContentLoaded', async () => {
           micBtn.style.boxShadow = '0 4px 0 #3a8a5b';
         } else {
           feedbackMsg = `"거의 다 왔어! 연습 단어들을 조금만 더 뚜렷하게 다시 읽어볼까?"`;
+          detailMsg = `현재 점수: ${score}점. 천천히 한 글자씩 또박또박 소리 내어 보세요!`;
         }
       } else {
         if (score >= 90 && fluency.score >= 90) {
           feedbackMsg = `"우와! 발음도 정말 완벽하고 끊어 읽기도 아나운서처럼 자연스러웠어! 100점 만점!"`;
+          detailMsg = `어려운 발음도 훌륭하게 소화했고, 중간에 부자연스러운 멈춤 없이 완벽한 리듬으로 읽었어요.`;
         } else if (score >= 80) {
           if (fluency.pauseCount > 0) {
             feedbackMsg = `"발음은 아주 좋았어! 하지만 중간에 너무 길게 쉬어간 곳이 ${fluency.pauseCount}번 있었네. 물 흐르듯 자연스럽게 이어서 읽어볼까?"`;
+            detailMsg = `단어들은 정확히 읽었지만, 숨을 너무 오래 참고 읽거나 중간에 멈춘 구간이 감지되었어요. 자연스럽게 이어서 읽는 연습을 해보세요.`;
           } else if (parsed.worstWord) {
             feedbackMsg = `"리듬감은 완벽해! 하지만 <strong>'${parsed.worstWord}'</strong> 발음이 조금 아쉬웠어. 이 단어만 더 뚜렷하게 읽어보자!"`;
+            detailMsg = `AI 분석 결과 '${parsed.worstWord}' 단어가 불명확하게 들렸어요. 입을 크게 벌리고 소리 내보세요.`;
           } else {
             feedbackMsg = `"참 잘했어! 조금만 더 큰 소리로 자신감 있게 읽어보면 완벽할거야!"`;
+            detailMsg = `목소리가 조금 작거나 불분명한 구간이 있어요. 큰 소리로 다시 한번 도전!`;
           }
         } else {
-          feedbackMsg = `"어려운 단어가 있었나 보네! 도토리 요정이랑 천천히 처음부터 다시 읽어보자!"`;
+          feedbackMsg = `"어려운 단어가 있었나 보네! 별 요정이랑 천천히 처음부터 다시 읽어보자!"`;
+          if (parsed.worstWord) {
+            detailMsg = `가장 헷갈려 했던 단어는 '${parsed.worstWord}'예요. 이 부분의 발음이 뭉개지거나 다르게 읽혔습니다. 유창성 점수는 ${fluency.score}점입니다.`;
+          } else {
+            detailMsg = `유창성 점수는 ${fluency.score}점입니다. 전체적으로 속도를 늦추고 또박또박 읽는 연습이 필요해요.`;
+          }
         }
       }
       
       feedbackText.innerHTML = feedbackMsg;
+      if (feedbackDetail) feedbackDetail.innerHTML = detailMsg;
       feedbackTitle.scrollIntoView({ behavior: 'smooth' });
 
       // Gemini Word Recommendation (Only in Story Mode)
@@ -265,36 +276,43 @@ document.addEventListener('DOMContentLoaded', async () => {
         practiceBtn.style.display = 'none';
       }
       
-      if (currentMode === 'story' && parsed.worstWord && geminiKey && recommendationBox) {
+      if (currentMode === 'story' && parsed.worstWord && recommendationBox) {
         worstWordCache = parsed.worstWord;
         recommendationText.innerHTML = "단어 추천을 생성하고 있습니다... ⏳";
         recommendationBox.style.display = 'block';
         
-        try {
-          const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{
-                parts: [{
-                  text: `초등학교 저학년 학생이 '${parsed.worstWord}'라는 단어를 발음하기 어려워해. 이 단어와 발음 원리나 구조(예: 겹받침, 연음 등)가 유사해서 발음 연습하기 좋은 단어 3개를 쉼표로 구분해서 말해줘. 부가 설명 없이 단어 3개만 딱 출력해.`
+        const fallbackWords = [`${parsed.worstWord}와`, `${parsed.worstWord}를`, `${parsed.worstWord}도`];
+        
+        if (geminiKey) {
+          try {
+            const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiKey}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{
+                  parts: [{
+                    text: `초등학교 저학년 학생이 '${parsed.worstWord}'라는 단어를 발음하기 어려워해. 이 단어와 발음 원리나 구조(예: 겹받침, 연음 등)가 유사해서 발음 연습하기 좋은 단어 3개를 쉼표로 구분해서 말해줘. 부가 설명 없이 단어 3개만 딱 출력해.`
+                  }]
                 }]
-              }]
-            })
-          });
-          
-          if (geminiResponse.ok) {
-            const geminiData = await geminiResponse.json();
-            recommendedWordsCache = geminiData.candidates[0].content.parts[0].text.trim();
-            recommendationText.innerHTML = `이런 단어들도 소리 내어 읽어볼까요? <br><span style="color:var(--color-primary-dark); font-size: 20px;">${recommendedWordsCache}</span>`;
-            practiceBtn.style.display = 'block';
-          } else {
-            recommendationBox.style.display = 'none';
+              })
+            });
+            
+            if (geminiResponse.ok) {
+              const geminiData = await geminiResponse.json();
+              recommendedWordsCache = geminiData.candidates[0].content.parts[0].text.trim();
+            } else {
+              recommendedWordsCache = fallbackWords.join(", ");
+            }
+          } catch (e) {
+            console.error("Gemini API Error", e);
+            recommendedWordsCache = fallbackWords.join(", ");
           }
-        } catch (e) {
-          console.error("Gemini API Error", e);
-          recommendationBox.style.display = 'none';
+        } else {
+          recommendedWordsCache = fallbackWords.join(", ");
         }
+        
+        recommendationText.innerHTML = `이런 단어들도 소리 내어 읽어볼까요? <br><span style="color:var(--color-primary-dark); font-size: 20px;">${recommendedWordsCache}</span>`;
+        practiceBtn.style.display = 'block';
       }
 
     } catch (err) {
