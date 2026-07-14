@@ -267,7 +267,7 @@ async function startPresentation() {
 
     // Record audio for Gemini
     audioChunks = [];
-    mediaRecorder = new MediaRecorder(mediaStream, { mimeType: 'audio/webm' });
+    mediaRecorder = new MediaRecorder(mediaStream);
     mediaRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) audioChunks.push(e.data);
     };
@@ -330,7 +330,7 @@ async function startPresentation() {
     console.error('시작 오류:', err);
     startBtn.innerHTML = originalStartText;
     startBtn.classList.remove('opacity-70', 'pointer-events-none');
-    alert('카메라/마이크 접근 권한이 필요합니다.');
+    alert('오류 발생: ' + err.message + '\n(카메라/마이크 권한을 확인해주세요)');
   }
 }
 
