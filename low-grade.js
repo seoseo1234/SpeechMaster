@@ -280,10 +280,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (currentMode === 'finished') {
       currentMode = 'story';
       renderSentence("새로운 지문을 불러오는 중입니다... ⏳");
-      feedbackSection.style.display = 'none';
-      recommendationBox.style.display = 'none';
+      if (feedbackSection) feedbackSection.style.display = 'none';
+      if (recommendationBox) recommendationBox.style.display = 'none';
       micText.innerText = '누르고 말하기';
       micIcon.innerText = 'mic';
+      micBtn.classList.replace('chunky-button-primary', 'chunky-button-secondary');
       await generateNewSentence();
       return;
     }
@@ -461,6 +462,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Restore button text
       micText.innerText = '다시 해보기';
       micIcon.innerText = 'replay';
+      micBtn.classList.replace('chunky-button-primary', 'chunky-button-secondary');
 
       // Update story box with highlighted letters
       renderSentence(targetSentence, highlightedText);
@@ -500,6 +502,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (score >= 90 && fluency.score >= 90) {
           feedbackMsg = `우와! 발음도 정말 완벽하고 끊어 읽기도 아나운서처럼 자연스러웠어! 100점 만점!`;
           detailMsg = `어려운 발음도 훌륭하게 소화했고, 중간에 부자연스러운 멈춤 없이 완벽한 리듬으로 읽었어요.`;
+          
+          currentMode = 'finished';
+          micText.innerText = '새로운 지문 도전하기';
+          micIcon.innerText = 'stars';
+          micBtn.classList.replace('chunky-button-secondary', 'chunky-button-primary');
         } else if (score >= 80) {
           if (fluency.pauseCount > 0) {
             feedbackMsg = `발음은 아주 좋았어! 하지만 중간에 너무 길게 쉬어간 곳이 ${fluency.pauseCount}번 있었네. 물 흐르듯 자연스럽게 이어서 읽어볼까?`;
