@@ -199,29 +199,61 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function processAudio(audioBlob, url, secret) {
-    const formData = new FormData();
-    formData.append('media', audioBlob, 'record.webm');
-    formData.append('params', JSON.stringify({
-      language: 'ko-KR',
-      completion: 'sync',
-      assessment: true,
-      graph: true,
-      utterance: targetSentence
-    }));
-
     let rawUrl = url;
-    if (!url.endsWith('/stt') && !url.endsWith('/upload')) {
-      rawUrl = `${url}/recognizer/upload`;
-    }
+    let requestOptions = {};
 
-    try {
-      const response = await fetch(rawUrl, {
+    if (url.endsWith('/stt')) {
+      // Short sentence API (/recog/v1/stt) requires query params & octet-stream
+      const queryParams = new URLSearchParams({
+        lang: 'Kor',
+        assessment: 'true',
+        graph: 'true',
+        utterance: targetSentence
+      });
+      rawUrl = `${url}?${queryParams.toString()}`;
+      
+      requestOptions = {
+        method: 'POST',
+        headers: {
+          'X-CLOVASPEECH-API-KEY': secret,
+          'Content-Type': 'application/octet-stream'
+        },
+        body: audioBlob
+      };
+    } else {
+      // Standard upload API requires multipart/form-data
+      const formData = new FormData();
+      formData.append('media', audioBlob, 'record.webm');
+      formData.append('params', JSON.stringify({
+        language: 'ko-KR',
+        completion: 'sync',
+        assessment: true,
+        graph: true,
+        utterance: targetSentence
+      }));
+      
+      if (!url.endsWith('/upload')) {
+        rawUrl = `${url}/recognizer/upload`;
+      }
+      
+      requestOptions = {
         method: 'POST',
         headers: { 'X-CLOVASPEECH-API-KEY': secret },
         body: formData
-      });
+      };
+    }
 
+    // Proxy request through Vite to avoid CORS issues
+    let proxiedUrl = rawUrl;
+    try {
+      const urlObj = new URL(rawUrl);
+      proxiedUrl = `/api/clova${urlObj.pathname}${urlObj.search}`;
+    } catch(e) {}
+
+    try {
+      const response = await fetch(proxiedUrl, requestOptions);
       const data = await response.json();
+      
       if (!response.ok) {
         throw new Error(data.message || 'API Error');
       }
