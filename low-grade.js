@@ -74,19 +74,40 @@ document.addEventListener('DOMContentLoaded', async () => {
   function updateLevelSpeakerIcon() {
     const levelIcon = document.getElementById('level-icon');
     if (!levelIcon) return;
-    if (currentLevel >= 30) {
-      levelIcon.innerText = 'auto_awesome';
-      levelIcon.className = 'material-symbols-outlined text-red-500 text-4xl animate-pulse';
-    } else if (currentLevel >= 20) {
-      levelIcon.innerText = 'workspace_premium';
-      levelIcon.className = 'material-symbols-outlined text-purple-500 text-4xl';
-    } else if (currentLevel >= 10) {
-      levelIcon.innerText = 'military_tech';
-      levelIcon.className = 'material-symbols-outlined text-blue-500 text-3xl';
+
+    let iconName = 'stars';
+    let colorClass = '';
+
+    const colors = [
+      'text-red-500', 
+      'text-orange-500', 
+      'text-yellow-400', 
+      'text-green-500', 
+      'text-blue-500', 
+      'text-indigo-500', 
+      'text-purple-500'
+    ];
+
+    if (currentLevel >= 150) {
+      iconName = 'favorite';
+      colorClass = 'text-rainbow text-4xl animate-pulse';
+    } else if (currentLevel >= 80) {
+      iconName = 'favorite';
+      const colorIndex = Math.floor((currentLevel - 80) / 10) % colors.length;
+      colorClass = `${colors[colorIndex]} text-4xl transition-colors duration-500`;
+    } else if (currentLevel >= 70) {
+      iconName = 'stars';
+      colorClass = 'text-rainbow text-4xl animate-pulse';
     } else {
-      levelIcon.innerText = 'stars';
-      levelIcon.className = 'material-symbols-outlined text-tertiary text-3xl transition-colors duration-500';
+      iconName = 'stars';
+      // 레벨 1~9: 빨강 (0), 10~19: 주황 (1), ...
+      const colorIndex = Math.floor(Math.max(0, currentLevel - 1) / 10) % colors.length;
+      colorClass = `${colors[colorIndex]} text-3xl transition-colors duration-500`;
     }
+
+    levelIcon.innerText = iconName;
+    levelIcon.className = `material-symbols-outlined ${colorClass}`;
+    levelIcon.style.fontVariationSettings = "'FILL' 1";
   }
 
   updateLevelDisplay();

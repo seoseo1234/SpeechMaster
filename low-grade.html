@@ -181,6 +181,17 @@
             color: #006e21;
             font-weight: 800;
         }
+        .text-rainbow {
+            background-image: linear-gradient(to left, violet, indigo, blue, green, #eab308, orange, red);
+            -webkit-background-clip: text;
+            color: transparent;
+            animation: rainbow-anim 3s linear infinite;
+            background-size: 200% auto;
+        }
+        @keyframes rainbow-anim {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center">
