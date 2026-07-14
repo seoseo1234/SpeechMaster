@@ -610,11 +610,28 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Find matching word score (fuzzy match or exact)
       // Clova might split punctuation, so remove punctuation for matching
       const cleanW = w.replace(/[.,!?]/g, '');
-      const score = wordScores[cleanW] || wordScores[w] || 100;
+      let score = wordScores[cleanW];
+      if (score === undefined) score = wordScores[w];
+      
+      if (score === undefined) {
+        // Try substring match for compound words/particles
+        for (const [key, val] of Object.entries(wordScores)) {
+          if (cleanW.includes(key) || key.includes(cleanW)) {
+            score = val;
+            break;
+          }
+        }
+      }
+      
+      // Default to neutral score (85) to avoid false greens on unmatched words
+      if (score === undefined) score = 85; 
       
       let colorClass = '';
-      if (score >= 90) colorClass = 'highlight-green';
-      else if (score < 75) colorClass = 'highlight-red';
+      if (score >= 90 && cleanW !== worstWord) {
+        colorClass = 'highlight-green';
+      } else if (score < 85 || cleanW === worstWord || (worstWord && worstWord.length > 1 && cleanW.includes(worstWord))) {
+        colorClass = 'highlight-red';
+      }
 
       for (let char of w) {
         html += `<span class="letter-box ${colorClass}">${char}</span>`;
