@@ -244,7 +244,11 @@ function updateScriptHighlight(recognizedText) {
 }
 
 async function startPresentation() {
+  const originalStartText = startBtn.innerHTML;
   try {
+    startBtn.innerHTML = `<span class="material-symbols-outlined animate-spin" style="animation-duration: 2s;">sync</span> <span id="start-btn-text">연결 중...</span>`;
+    startBtn.classList.add('opacity-70', 'pointer-events-none');
+
     // 1. WebSocket connect
     ws = new WebSocket('ws://localhost:3001');
     ws.onopen = async () => {
@@ -310,6 +314,8 @@ async function startPresentation() {
         resetHabits();
 
         startBtn.classList.add('hidden');
+        startBtn.innerHTML = originalStartText;
+        startBtn.classList.remove('opacity-70', 'pointer-events-none');
         endBtn.classList.remove('hidden');
         
         micStatusIcon.classList.replace('bg-surface-variant', 'bg-primary-container');
@@ -330,6 +336,8 @@ async function startPresentation() {
 
   } catch (err) {
     console.error('시작 오류:', err);
+    startBtn.innerHTML = originalStartText;
+    startBtn.classList.remove('opacity-70', 'pointer-events-none');
     alert('카메라/마이크 접근 권한이 없거나 서버(ws://localhost:3001)에 연결할 수 없습니다. server.js가 실행 중인지 확인해주세요.');
   }
 }
