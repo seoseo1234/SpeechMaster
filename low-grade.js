@@ -129,79 +129,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // Handle Practice Button
-  practiceBtn.addEventListener('click', () => {
-    currentMode = 'practice';
-    targetSentence = recommendedWordsCache;
-    storyBox.innerHTML = `"${targetSentence}"`;
-    recommendationBox.style.display = 'none';
-    feedbackBox.style.display = 'none';
-    feedbackTitle.style.display = 'none';
-    micBtn.innerHTML = '🎤 연습 시작하기';
-    micBtn.style.background = 'var(--color-primary)';
-    micBtn.style.color = 'white';
-  });
 
-  let isRecording = false;
-  let mediaRecorder = null;
-  let audioChunks = [];
-  let stream = null;
-
-  micBtn.addEventListener('click', async () => {
-    if (currentMode === 'finished') {
-      currentMode = 'story';
-      storyBox.innerText = "새로운 지문을 불러오는 중입니다... ⏳";
-      feedbackBox.style.display = 'none';
-      feedbackTitle.style.display = 'none';
-      recommendationBox.style.display = 'none';
-      micBtn.innerHTML = '🎤 누르고 말하기';
-      micBtn.style.background = 'var(--color-primary)';
-      micBtn.style.color = 'white';
-      await generateNewSentence();
-      return;
-    }
-
-    if (isRecording) {
-      stopRecording();
-      return;
-    }
-
-    if (!invokeUrl || !secretKey) {
-      alert('.env 파일에 VITE_CLOVA_INVOKE_URL과 VITE_CLOVA_SECRET_KEY를 설정해주세요.');
-      return;
-    }
-
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorder = new MediaRecorder(stream);
-      audioChunks = [];
-
-      mediaRecorder.ondataavailable = e => {
-        if (e.data.size > 0) audioChunks.push(e.data);
-      };
-
-      mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' }); // webm is usually supported in browsers
-        processAudio(audioBlob, invokeUrl, secretKey);
-      };
-
-      mediaRecorder.start();
-      isRecording = true;
-      micBtn.innerHTML = '🔴 녹음 중... (종료하려면 클릭하세요)';
-      micBtn.style.background = 'var(--color-error)';
-      micBtn.style.color = 'white';
-      micBtn.style.boxShadow = 'none';
-      micBtn.style.transform = 'translateY(4px)';
-
-      feedbackBox.style.display = 'none';
-      feedbackTitle.style.display = 'none';
-      storyBox.innerHTML = `"${targetSentence}"`;
-
-    } catch (err) {
-      alert('마이크 접근 권한이 필요합니다.');
-      console.error(err);
-    }
-  });
 
   function stopRecording() {
     isRecording = false;
