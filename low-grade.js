@@ -10,7 +10,7 @@ let worstWordCache = "";
 
 document.addEventListener('DOMContentLoaded', async () => {
   const micBtn = document.getElementById('mic-btn');
-  const storyBox = document.getElementById('story-text');
+  const storyBox = document.getElementById('story-box');
   const feedbackBox = document.getElementById('feedback-box');
   const feedbackTitle = document.getElementById('feedback-title');
   const feedbackText = document.getElementById('feedback-text');
