@@ -321,28 +321,50 @@ document.addEventListener('DOMContentLoaded', async () => {
   let audioChunks = [];
   let stream = null;
 
-  micBtn.addEventListener('click', async () => {
-    if (currentMode === 'finished') {
-      if (sessionQuestionCount >= 10) {
-        showResultModal();
+  async function nextQuestion() {
+    if (sessionQuestionCount >= 10) {
+      showResultModal();
+      return;
+    }
+    
+    sessionQuestionCount++;
+    currentQuestionStarEligible = true;
+    if (skipBtn) skipBtn.style.display = 'flex';
+    
+    currentMode = 'story';
+    renderSentence("새로운 지문을 불러오는 중입니다... ⏳");
+    if (feedbackSection) feedbackSection.style.display = 'none';
+    if (recommendationBox) recommendationBox.style.display = 'none';
+    micText.innerText = '누르고 말하기';
+    micIcon.innerText = 'mic';
+    micBtn.classList.replace('chunky-button-primary', 'chunky-button-secondary');
+    
+    const sessionTitle = document.getElementById('session-title');
+    if (sessionTitle) sessionTitle.innerText = `오늘의 문장 읽기 (${sessionQuestionCount}/10)`;
+    
+    await generateNewSentence();
+  }
+
+  const skipBtn = document.getElementById('skip-btn');
+  if (skipBtn) {
+    skipBtn.addEventListener('click', async () => {
+      if (isRecording) {
+        alert('녹음 중에는 건너뛸 수 없습니다. 먼저 정지해주세요.');
         return;
       }
       
-      sessionQuestionCount++;
-      currentQuestionStarEligible = true;
+      if (!sessionHistory[sessionQuestionCount - 1]) {
+        sessionHistory[sessionQuestionCount - 1] = 'none';
+        updateSessionStarsUI();
+      }
       
-      currentMode = 'story';
-      renderSentence("새로운 지문을 불러오는 중입니다... ⏳");
-      if (feedbackSection) feedbackSection.style.display = 'none';
-      if (recommendationBox) recommendationBox.style.display = 'none';
-      micText.innerText = '누르고 말하기';
-      micIcon.innerText = 'mic';
-      micBtn.classList.replace('chunky-button-primary', 'chunky-button-secondary');
-      
-      const sessionTitle = document.getElementById('session-title');
-      if (sessionTitle) sessionTitle.innerText = `오늘의 문장 읽기 (${sessionQuestionCount}/10)`;
-      
-      await generateNewSentence();
+      await nextQuestion();
+    });
+  }
+
+  micBtn.addEventListener('click', async () => {
+    if (currentMode === 'finished') {
+      await nextQuestion();
       return;
     }
 
@@ -541,6 +563,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           feedbackMsg = `우와, 정말 대단해! 오늘 어려운 글자 '${worstWordCache}'(을)를 완벽하게 마스터했어! 발음 점수 ${score}점!`;
           detailMsg = `요정이 ${score}점을 주었어요! 이제 어떤 단어든 자신감 있게 읽을 수 있어요.`;
           currentMode = 'finished';
+          if (skipBtn) skipBtn.style.display = 'none';
           micText.innerText = '새로운 지문 도전하기';
           micIcon.innerText = 'stars';
           micBtn.classList.replace('chunky-button-secondary', 'chunky-button-primary');
@@ -553,6 +576,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           feedbackMsg = `두 번이나 열심히 도전하다니 정말 멋져! 연습 단어는 여기까지 하고, 다음 이야기로 넘어가 볼까?`;
           detailMsg = `노력 점수로 별 요정이 칭찬 스티커를 주었어요! 다음 문장으로 넘어갈 수 있어요.`;
           currentMode = 'finished';
+          if (skipBtn) skipBtn.style.display = 'none';
           micText.innerText = '새로운 지문 도전하기';
           micIcon.innerText = 'stars';
           micBtn.classList.replace('chunky-button-secondary', 'chunky-button-primary');
@@ -571,6 +595,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           detailMsg = `어려운 발음도 훌륭하게 소화했고, 중간에 부자연스러운 멈춤 없이 완벽한 리듬으로 읽었어요.`;
           
           currentMode = 'finished';
+          if (skipBtn) skipBtn.style.display = 'none';
           micText.innerText = '새로운 지문 도전하기';
           micIcon.innerText = 'stars';
           micBtn.classList.replace('chunky-button-secondary', 'chunky-button-primary');
@@ -589,6 +614,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           }
           
           currentMode = 'finished';
+          if (skipBtn) skipBtn.style.display = 'none';
           micText.innerText = '새로운 지문 도전하기';
           micIcon.innerText = 'stars';
           micBtn.classList.replace('chunky-button-secondary', 'chunky-button-primary');
@@ -730,6 +756,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       updateSessionStarsUI();
       
       currentMode = 'story';
+      if (skipBtn) skipBtn.style.display = 'flex';
       renderSentence("새로운 지문을 불러오는 중입니다... ⏳");
       if (feedbackSection) feedbackSection.style.display = 'none';
       if (recommendationBox) recommendationBox.style.display = 'none';
