@@ -9,6 +9,12 @@ let practiceAttemptCount = 0;
 let recommendedWordsCache = "";
 let worstWordCache = "";
 
+// Session variables
+let sessionQuestionCount = 1;
+let sessionHistory = []; 
+let currentQuestionStarEligible = true;
+const xpMax = 100;
+
 let appSettings = JSON.parse(localStorage.getItem('speechbuddy_settings')) || {
   name: '',
   fairy: 'acorn',
@@ -32,7 +38,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   function updateLevelDisplay() {
     const levelDisplay = document.querySelector('.bg-tertiary-container');
     if (levelDisplay) {
-      levelDisplay.innerHTML = `레벨 ${currentLevel} <span class="material-symbols-outlined">trending_up</span>`;
+      levelDisplay.innerHTML = `레벨 ${currentLevel} <span class="material-symbols-outlined" id="level-icon">stars</span>`;
+      updateLevelSpeakerIcon();
     }
   }
 
@@ -49,17 +56,36 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function gainXp(amount) {
     currentXp += amount;
-    const requiredXp = currentLevel * 50;
-    if (currentXp >= requiredXp) {
+    let levelChanged = false;
+    while (currentXp >= xpMax) {
+      currentXp -= xpMax;
       currentLevel++;
-      currentXp -= requiredXp;
+      levelChanged = true;
+    }
+    localStorage.setItem('speechbuddy_xp', currentXp);
+    if (levelChanged) {
       localStorage.setItem('speechbuddy_level', currentLevel);
-      localStorage.setItem('speechbuddy_xp', currentXp);
-      updateLevelDisplay();
-      showToast(`축하합니다! 레벨 ${currentLevel}(으)로 올랐어요!`);
-      playSuccessSound();
+      showToast(`🎉 레벨 업! 현재 레벨 ${currentLevel} 🎉`);
+      updateLevelSpeakerIcon();
+    }
+    updateLevelDisplay();
+  }
+
+  function updateLevelSpeakerIcon() {
+    const levelIcon = document.getElementById('level-icon');
+    if (!levelIcon) return;
+    if (currentLevel >= 30) {
+      levelIcon.innerText = 'auto_awesome';
+      levelIcon.className = 'material-symbols-outlined text-red-500 text-4xl animate-pulse';
+    } else if (currentLevel >= 20) {
+      levelIcon.innerText = 'workspace_premium';
+      levelIcon.className = 'material-symbols-outlined text-purple-500 text-4xl';
+    } else if (currentLevel >= 10) {
+      levelIcon.innerText = 'military_tech';
+      levelIcon.className = 'material-symbols-outlined text-blue-500 text-3xl';
     } else {
-      localStorage.setItem('speechbuddy_xp', currentXp);
+      levelIcon.innerText = 'stars';
+      levelIcon.className = 'material-symbols-outlined text-tertiary text-3xl transition-colors duration-500';
     }
   }
 
@@ -278,6 +304,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   micBtn.addEventListener('click', async () => {
     if (currentMode === 'finished') {
+      if (sessionQuestionCount >= 10) {
+        showResultModal();
+        return;
+      }
+      
+      sessionQuestionCount++;
+      currentQuestionStarEligible = true;
+      
       currentMode = 'story';
       renderSentence("새로운 지문을 불러오는 중입니다... ⏳");
       if (feedbackSection) feedbackSection.style.display = 'none';
@@ -285,6 +319,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       micText.innerText = '누르고 말하기';
       micIcon.innerText = 'mic';
       micBtn.classList.replace('chunky-button-primary', 'chunky-button-secondary');
+      
+      const sessionTitle = document.getElementById('session-title');
+      if (sessionTitle) sessionTitle.innerText = `오늘의 문장 읽기 (${sessionQuestionCount}/10)`;
+      
       await generateNewSentence();
       return;
     }
@@ -487,6 +525,11 @@ document.addEventListener('DOMContentLoaded', async () => {
           micText.innerText = '새로운 지문 도전하기';
           micIcon.innerText = 'stars';
           micBtn.classList.replace('chunky-button-secondary', 'chunky-button-primary');
+          
+          if (!sessionHistory[sessionQuestionCount - 1]) {
+            sessionHistory[sessionQuestionCount - 1] = 'silver';
+            updateSessionStarsUI();
+          }
         } else if (practiceAttemptCount >= 2) {
           feedbackMsg = `두 번이나 열심히 도전하다니 정말 멋져! 연습 단어는 여기까지 하고, 다음 이야기로 넘어가 볼까?`;
           detailMsg = `노력 점수로 별 요정이 칭찬 스티커를 주었어요! 다음 문장으로 넘어갈 수 있어요.`;
@@ -494,6 +537,11 @@ document.addEventListener('DOMContentLoaded', async () => {
           micText.innerText = '새로운 지문 도전하기';
           micIcon.innerText = 'stars';
           micBtn.classList.replace('chunky-button-secondary', 'chunky-button-primary');
+          
+          if (!sessionHistory[sessionQuestionCount - 1]) {
+            sessionHistory[sessionQuestionCount - 1] = 'none';
+            updateSessionStarsUI();
+          }
         } else {
           feedbackMsg = `거의 다 왔어! 연습 단어들을 조금만 더 뚜렷하게 다시 읽어볼까? (남은 기회: 1번)`;
           detailMsg = `현재 점수: ${score}점. 천천히 한 글자씩 또박또박 소리 내어 보세요!`;
@@ -507,6 +555,11 @@ document.addEventListener('DOMContentLoaded', async () => {
           micText.innerText = '새로운 지문 도전하기';
           micIcon.innerText = 'stars';
           micBtn.classList.replace('chunky-button-secondary', 'chunky-button-primary');
+          
+          if (!sessionHistory[sessionQuestionCount - 1]) {
+            sessionHistory[sessionQuestionCount - 1] = currentQuestionStarEligible ? 'gold' : 'silver';
+            updateSessionStarsUI();
+          }
         } else if (score >= 80) {
           if (fluency.pauseCount > 0) {
             feedbackMsg = `발음은 아주 좋았어! 하지만 중간에 너무 길게 쉬어간 곳이 ${fluency.pauseCount}번 있었네. 물 흐르듯 자연스럽게 이어서 읽어볼까?`;
@@ -515,7 +568,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             feedbackMsg = `참 잘했어! '${parsed.worstWord}' 부분만 한 번 더 또박또박 읽어보면 완벽할 것 같아!`;
             detailMsg = `전체적으로 훌륭하지만 '${parsed.worstWord}' 발음이 살짝 아쉬웠어요. 유창성 점수는 ${fluency.score}점입니다.`;
           }
+          
+          currentMode = 'finished';
+          micText.innerText = '새로운 지문 도전하기';
+          micIcon.innerText = 'stars';
+          micBtn.classList.replace('chunky-button-secondary', 'chunky-button-primary');
+          
+          if (!sessionHistory[sessionQuestionCount - 1]) {
+            sessionHistory[sessionQuestionCount - 1] = currentQuestionStarEligible ? 'gold' : 'silver';
+            updateSessionStarsUI();
+          }
         } else {
+          currentQuestionStarEligible = false;
           feedbackMsg = `어려운 단어가 있었나 보네! 별 요정이랑 천천히 처음부터 다시 읽어보자!`;
           if (parsed.worstWord) {
             detailMsg = `가장 헷갈려 했던 단어는 '${parsed.worstWord}'예요. 이 부분의 발음이 뭉개지거나 다르게 읽혔습니다. 유창성 점수는 ${fluency.score}점입니다.`;
@@ -585,6 +649,80 @@ document.addEventListener('DOMContentLoaded', async () => {
       micText.innerText = '다시 해보기';
       micIcon.innerText = 'replay';
     }
+  }
+
+  function updateSessionStarsUI() {
+    const starsContainer = document.getElementById('session-stars');
+    if (!starsContainer) return;
+    
+    const starElements = starsContainer.querySelectorAll('span');
+    starElements.forEach((el, index) => {
+      const state = sessionHistory[index];
+      if (state === 'gold') {
+        el.className = 'material-symbols-outlined text-yellow-400 text-2xl';
+      } else if (state === 'silver') {
+        el.className = 'material-symbols-outlined text-green-400 text-2xl';
+      } else if (state === 'none') {
+        el.className = 'material-symbols-outlined text-red-400 text-2xl';
+      } else {
+        el.className = 'material-symbols-outlined text-outline-variant text-2xl';
+      }
+    });
+  }
+
+  function showResultModal() {
+    const modal = document.getElementById('result-modal');
+    if (!modal) return;
+    
+    let totalStars = 0;
+    sessionHistory.forEach(s => {
+      if (s === 'gold' || s === 'silver') totalStars++;
+    });
+
+    let rank = 'F';
+    let xpBonus = 0;
+    if (totalStars === 10) { rank = 'A'; xpBonus = 50; }
+    else if (totalStars >= 8) { rank = 'B'; xpBonus = 30; }
+    else if (totalStars >= 6) { rank = 'C'; xpBonus = 20; }
+    else if (totalStars >= 4) { rank = 'D'; xpBonus = 10; }
+    else if (totalStars >= 2) { rank = 'E'; xpBonus = 5; }
+    
+    document.getElementById('result-rank').innerText = rank;
+    document.getElementById('result-detail').innerText = `총 ${totalStars}개의 별을 획득했어요!\n보너스 XP: +${xpBonus}점`;
+    
+    const starsContainer = document.getElementById('result-stars');
+    starsContainer.innerHTML = '';
+    for (let i = 0; i < totalStars; i++) {
+      starsContainer.innerHTML += `<span class="material-symbols-outlined text-yellow-400 text-3xl" style="font-variation-settings: 'FILL' 1;">star</span>`;
+    }
+
+    if (xpBonus > 0) gainXp(xpBonus);
+
+    modal.classList.remove('hidden');
+  }
+
+  const restartSessionBtn = document.getElementById('restart-session-btn');
+  if (restartSessionBtn) {
+    restartSessionBtn.addEventListener('click', async () => {
+      document.getElementById('result-modal').classList.add('hidden');
+      sessionQuestionCount = 1;
+      sessionHistory = [];
+      currentQuestionStarEligible = true;
+      updateSessionStarsUI();
+      
+      currentMode = 'story';
+      renderSentence("새로운 지문을 불러오는 중입니다... ⏳");
+      if (feedbackSection) feedbackSection.style.display = 'none';
+      if (recommendationBox) recommendationBox.style.display = 'none';
+      micText.innerText = '누르고 말하기';
+      micIcon.innerText = 'mic';
+      micBtn.classList.replace('chunky-button-primary', 'chunky-button-secondary');
+      
+      const sessionTitle = document.getElementById('session-title');
+      if (sessionTitle) sessionTitle.innerText = `오늘의 문장 읽기 (${sessionQuestionCount}/10)`;
+      
+      await generateNewSentence();
+    });
   }
 
   function parseAssessmentDetails(detailsStr, originalSentence) {
