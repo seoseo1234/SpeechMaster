@@ -609,13 +609,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function calculateFluency(usrGraph) {
     if (!usrGraph || !usrGraph.length) return { score: 100, pauseCount: 0 };
-    const NOISE_THRESHOLD = 5;
-    const PAUSE_THRESHOLD_SAMPLES = 30;
+    
+    // Increase noise threshold to 20 to ignore background noise and mic static
+    const NOISE_THRESHOLD = 20;
+    // Decrease pause threshold to 15 samples (approx 300ms) to catch stuttering and slow reading
+    const PAUSE_THRESHOLD_SAMPLES = 15;
     
     let startIndex = 0;
     while(startIndex < usrGraph.length && usrGraph[startIndex] < NOISE_THRESHOLD) startIndex++;
     let endIndex = usrGraph.length - 1;
     while(endIndex >= 0 && usrGraph[endIndex] < NOISE_THRESHOLD) endIndex--;
+    
     if (startIndex >= endIndex) return { score: 100, pauseCount: 0 }; 
     
     let pauseCount = 0;
@@ -629,12 +633,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentSilenceLength = 0;
       }
     }
+    // Account for trailing silence within the bounds
+    if (currentSilenceLength >= PAUSE_THRESHOLD_SAMPLES) pauseCount++;
     
     let score = 100;
     if (pauseCount === 1) score = 90;
     else if (pauseCount === 2) score = 80;
     else if (pauseCount === 3) score = 70;
     else if (pauseCount >= 4) score = 60;
+    
     return { score, pauseCount };
   }
 });
