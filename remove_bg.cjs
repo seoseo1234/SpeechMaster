@@ -6,11 +6,13 @@ async function processImage(inputPath, outputPath) {
     const w = image.bitmap.width;
     const h = image.bitmap.height;
 
-    // Use a queue for flood fill to remove contiguous white background starting from the edges
+    // Get background color from top-left pixel
+    const bgHex = image.getPixelColor(0, 0);
+    const bgRgba = intToRGBA(bgHex);
+
     const visited = new Set();
     const queue = [];
 
-    // Push edge pixels to queue
     for (let x = 0; x < w; x++) {
       queue.push([x, 0]);
       queue.push([x, h - 1]);
@@ -20,7 +22,21 @@ async function processImage(inputPath, outputPath) {
       queue.push([w - 1, y]);
     }
 
-    const isWhite = (r, g, b) => r > 240 && g > 240 && b > 240;
+    // Increased tolerance to catch gradients/compression artifacts in the background
+    const tolerance = 60; 
+    const isBg = (r, g, b) => {
+      return Math.abs(r - bgRgba.r) < tolerance &&
+             Math.abs(g - bgRgba.g) < tolerance &&
+             Math.abs(b - bgRgba.b) < tolerance;
+    };
+    
+    // Some models leave a slight edge, so we'll also replace pixels that are somewhat close
+    const isEdgeBg = (r, g, b) => {
+      return Math.abs(r - bgRgba.r) < tolerance * 1.5 &&
+             Math.abs(g - bgRgba.g) < tolerance * 1.5 &&
+             Math.abs(b - bgRgba.b) < tolerance * 1.5;
+    };
+
     const getKey = (x, y) => `${x},${y}`;
 
     let head = 0;
@@ -35,9 +51,9 @@ async function processImage(inputPath, outputPath) {
       const hex = image.getPixelColor(x, y);
       const rgba = intToRGBA(hex);
 
-      if (isWhite(rgba.r, rgba.g, rgba.b)) {
+      if (isBg(rgba.r, rgba.g, rgba.b) || isEdgeBg(rgba.r, rgba.g, rgba.b)) {
         // Set transparent
-        image.setPixelColor(rgbaToInt(255, 255, 255, 0), x, y);
+        image.setPixelColor(rgbaToInt(0, 0, 0, 0), x, y);
 
         // Add neighbors
         queue.push([x + 1, y]);
@@ -54,8 +70,8 @@ async function processImage(inputPath, outputPath) {
   }
 }
 
-const cloudSrc = 'C:\\Users\\user\\.gemini\\antigravity-ide\\brain\\2cecdbcc-3710-4270-81cd-9df2370edf7e\\cloud_solid_1784033096474.png';
-const starSrc = 'C:\\Users\\user\\.gemini\\antigravity-ide\\brain\\2cecdbcc-3710-4270-81cd-9df2370edf7e\\star_solid_1784033111059.png';
+const cloudSrc = 'C:\\Users\\user\\.gemini\\antigravity-ide\\brain\\2cecdbcc-3710-4270-81cd-9df2370edf7e\\cloud_green_bg_1784033506615.png';
+const starSrc = 'C:\\Users\\user\\.gemini\\antigravity-ide\\brain\\2cecdbcc-3710-4270-81cd-9df2370edf7e\\star_green_bg_1784033492276.png';
 
 processImage(cloudSrc, 'public/cloud_fairy.png').then(() => {
   processImage(starSrc, 'public/star_fairy.png');
