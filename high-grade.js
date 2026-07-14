@@ -3,18 +3,17 @@ let audioContext = null;
 let analyser = null;
 let microphone = null;
 let volumeAnimation = null;
-let recognition = null;
+let audioWorkletNode = null;
 
+let ws = null;
 let isPresenting = false;
 let startTime = 0;
-let timerInterval = null;
 
 let habitCounts = {
   uh: 0, // 어
   um: 0, // 음
   geu: 0 // 그
 };
-let lastRecognizedText = '';
 let fullRecognizedText = '';
 
 // DOM Elements
@@ -45,10 +44,47 @@ const micStatusIcon = document.getElementById('mic-status-icon');
 const statusDot = document.getElementById('status-dot');
 const statusText = document.getElementById('status-text');
 
-// Init
+// Inline AudioWorklet for downsampling to 16kHz
+const workletCode = `
+class ResamplerProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.targetSampleRate = 16000;
+    this.buffer = [];
+  }
+  process(inputs, outputs, parameters) {
+    const input = inputs[0];
+    if (input.length > 0) {
+      const channelData = input[0]; // mono
+      // Very simple downsampling by picking samples
+      const ratio = sampleRate / this.targetSampleRate;
+      for (let i = 0; i < channelData.length; i += ratio) {
+        this.buffer.push(channelData[Math.floor(i)]);
+      }
+      
+      // When buffer has enough data, send it to main thread
+      if (this.buffer.length >= 4096) {
+        const out = new Float32Array(this.buffer);
+        // Convert Float32 to Int16
+        const int16Buffer = new Int16Array(out.length);
+        for (let i = 0; i < out.length; i++) {
+          let s = Math.max(-1, Math.min(1, out[i]));
+          int16Buffer[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+        }
+        this.port.postMessage(int16Buffer.buffer, [int16Buffer.buffer]);
+        this.buffer = [];
+      }
+    }
+    return true;
+  }
+}
+registerProcessor('resampler-processor', ResamplerProcessor);
+`;
+const workletUrl = URL.createObjectURL(new Blob([workletCode], { type: 'application/javascript' }));
+
+
 document.addEventListener('DOMContentLoaded', () => {
   setupScriptEditor();
-  setupSpeechRecognition();
   
   startBtn.addEventListener('click', startPresentation);
   endBtn.addEventListener('click', endPresentation);
@@ -60,9 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function setupScriptEditor() {
   let isEditing = false;
-  let lines = [];
   
-  // Extract initial text
   const pTags = scriptContent.querySelectorAll('p');
   let initialText = Array.from(pTags).map(p => p.innerText.trim()).join('\n\n');
   scriptEditor.value = initialText;
@@ -87,7 +121,6 @@ function setupScriptEditor() {
       editScriptBtn.classList.replace('bg-primary-container', 'bg-surface-container');
       editScriptBtn.classList.remove('text-on-primary-container');
       
-      // Update scriptContent from textarea
       const text = scriptEditor.value;
       const paragraphs = text.split('\n\n').filter(p => p.trim() !== '');
       scriptContent.innerHTML = '';
@@ -96,7 +129,7 @@ function setupScriptEditor() {
         pEl.className = 'font-body-lg leading-relaxed text-on-surface text-2xl transition-all duration-500';
         pEl.style.borderLeft = '4px solid transparent';
         pEl.style.paddingLeft = '0px';
-        pEl.style.opacity = idx === 0 ? '1' : '0.4'; // Focus first line
+        pEl.style.opacity = idx === 0 ? '1' : '0.4';
         if (idx === 0) {
           pEl.style.borderLeft = '4px solid #0c6780';
           pEl.style.paddingLeft = '16px';
@@ -108,89 +141,39 @@ function setupScriptEditor() {
   });
 }
 
-function setupSpeechRecognition() {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) {
-    console.warn('이 브라우저는 실시간 스트리밍 음성 인식을 지원하지 않습니다. Chrome을 사용해주세요.');
-    return;
-  }
-  
-  recognition = new SpeechRecognition();
-  recognition.continuous = true;
-  recognition.interimResults = true;
-  recognition.lang = 'ko-KR';
-
-  recognition.onresult = (event) => {
-    let interimTranscript = '';
-    let finalTranscript = '';
-
-    for (let i = event.resultIndex; i < event.results.length; ++i) {
-      if (event.results[i].isFinal) {
-        finalTranscript += event.results[i][0].transcript;
-      } else {
-        interimTranscript += event.results[i][0].transcript;
-      }
-    }
-
-    if (finalTranscript) {
-      fullRecognizedText += finalTranscript + ' ';
-      checkHabitualWords(finalTranscript);
-      updateScriptHighlight(fullRecognizedText);
-    }
-    
-    if (interimTranscript) {
-       // Also check interim for immediate feedback, but be careful of double counting
-       checkHabitualWords(interimTranscript, true);
-    }
-
-    sttResult.innerHTML = `
-      <span class="text-on-surface font-medium">${fullRecognizedText}</span>
-      <span class="text-on-surface-variant italic opacity-70">${interimTranscript}</span>
-    `;
-    
-    // Auto scroll to bottom
-    sttResult.parentElement.scrollTop = sttResult.parentElement.scrollHeight;
-  };
-
-  recognition.onerror = (event) => {
-    console.error('Speech recognition error', event.error);
-    // Restart if network or no speech error to keep the live feed going
-    if (isPresenting && (event.error === 'no-speech' || event.error === 'network')) {
-        try { recognition.stop(); } catch(e){}
-    }
-  };
-
-  recognition.onend = () => {
-    if (isPresenting) {
-      // Auto-restart to simulate continuous streaming API
-      setTimeout(() => {
-        if (isPresenting) {
-            try { recognition.start(); } catch(e){}
+function handleWebSocketMessage(message) {
+    try {
+        const response = JSON.parse(message.data);
+        if (response.error) {
+            console.error("Clova gRPC Error:", response.error);
+            return;
         }
-      }, 500);
+
+        // Response format usually follows NestResponse config.text etc.
+        // It's a JSON string inside response.contents according to the gRPC spec.
+        if (response.responseType && response.responseType.includes('transcription')) {
+            const tx = response.transcription;
+            if (tx && tx.text) {
+                // If it's a final or interim update (assuming Clova sends streaming updates)
+                // Clova streaming usually sends 'transcription' for final, maybe others for interim.
+                // Assuming tx.text is the final text of the chunk.
+                fullRecognizedText += tx.text + ' ';
+                checkHabitualWords(tx.text);
+                updateScriptHighlight(fullRecognizedText);
+                
+                sttResult.innerHTML = `<span class="text-on-surface font-medium">${fullRecognizedText}</span>`;
+                sttResult.parentElement.scrollTop = sttResult.parentElement.scrollHeight;
+            }
+        }
+    } catch(e) {
+        console.error("Error parsing WebSocket message", e);
     }
-  };
 }
 
-let lastInterimHabitCheck = '';
-function checkHabitualWords(text, isInterim = false) {
-  // Simple regex matching for common Korean habitual words
-  // "어", "어..", "음", "음..", "그", "그.."
-  
-  // If interim, we only check new parts to avoid counting the same "어" multiple times
-  let textToCheck = text;
-  if (isInterim) {
-      if (text.startsWith(lastInterimHabitCheck)) {
-          textToCheck = text.substring(lastInterimHabitCheck.length);
-      }
-      lastInterimHabitCheck = text;
-  } else {
-      lastInterimHabitCheck = ''; // reset on final
-  }
-
-  const uhMatch = (textToCheck.match(/\b(어+|아+)\b/g) || []).length;
-  const umMatch = (textToCheck.match(/\b(음+|음마+)\b/g) || []).length;
-  const geuMatch = (textToCheck.match(/\b(그+|어그+)\b/g) || []).length;
+function checkHabitualWords(text) {
+  const uhMatch = (text.match(/\b(어+|아+)\b/g) || []).length;
+  const umMatch = (text.match(/\b(음+|음마+)\b/g) || []).length;
+  const geuMatch = (text.match(/\b(그+|어그+)\b/g) || []).length;
 
   if (uhMatch > 0) updateHabit('uh', uhMatch);
   if (umMatch > 0) updateHabit('um', umMatch);
@@ -205,13 +188,11 @@ function updateHabit(type, count) {
   
   elCount.innerText = `${habitCounts[type]}회`;
   
-  // Visual feedback: flash red/orange
   if (habitCounts[type] > 0) {
     elItem.classList.replace('bg-surface-container', 'bg-error-container/30');
     elItem.classList.replace('border-outline-variant', 'border-error/20');
     elCount.classList.replace('text-on-surface-variant', 'text-error');
     
-    // flash animation
     elItem.classList.add('scale-105');
     setTimeout(() => elItem.classList.remove('scale-105'), 200);
   }
@@ -229,17 +210,13 @@ function resetHabits() {
 }
 
 function updateScriptHighlight(recognizedText) {
-  // A simple heuristic to advance script highlighting.
-  // In a real complex app, we'd use fuzzy string matching (e.g. Levenshtein distance) 
-  // between recognizedText and script lines.
   const paragraphs = Array.from(scriptContent.querySelectorAll('p'));
   if (paragraphs.length === 0) return;
 
-  // Very basic word-matching logic to find which paragraph we are currently at
   let bestMatchIdx = 0;
   let maxMatches = 0;
   
-  const recogWords = recognizedText.split(/\s+/).slice(-20); // Look at recent words
+  const recogWords = recognizedText.split(/\s+/).slice(-20);
 
   paragraphs.forEach((p, idx) => {
     const pWords = p.innerText.split(/\s+/);
@@ -247,13 +224,12 @@ function updateScriptHighlight(recognizedText) {
     recogWords.forEach(rw => {
       if (rw.length > 1 && pWords.some(pw => pw.includes(rw))) matches++;
     });
-    if (matches > maxMatches) {
+    if (matches >= maxMatches && matches > 0) {
       maxMatches = matches;
       bestMatchIdx = idx;
     }
   });
 
-  // Apply visual highlight
   paragraphs.forEach((p, idx) => {
     if (idx === bestMatchIdx) {
       p.style.opacity = '1';
@@ -269,76 +245,102 @@ function updateScriptHighlight(recognizedText) {
 
 async function startPresentation() {
   try {
-    mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    
-    // Video
-    cameraFeed.srcObject = mediaStream;
-    cameraFallback.classList.add('hidden');
-    cameraFeed.classList.remove('hidden');
-    
-    // Audio Context for Volume
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    analyser = audioContext.createAnalyser();
-    microphone = audioContext.createMediaStreamSource(mediaStream);
-    microphone.connect(analyser);
-    analyser.fftSize = 256;
-    
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
-    
-    function drawVolume() {
-      if (!isPresenting) return;
-      volumeAnimation = requestAnimationFrame(drawVolume);
-      
-      analyser.getByteFrequencyData(dataArray);
-      let sum = 0;
-      for(let i = 0; i < bufferLength; i++) { sum += dataArray[i]; }
-      let average = sum / bufferLength;
-      
-      // Map average (0-255) to percentage and dB rough estimate
-      let percentage = Math.min(100, Math.max(0, (average / 100) * 100));
-      let dbEstimate = Math.round(average / 2); // very rough mapping
-      
-      volumeBar.style.width = `${percentage}%`;
-      volumeText.innerText = `${dbEstimate} dB`;
-      
-      if (percentage > 80) volumeBar.classList.replace('bg-secondary', 'bg-error');
-      else volumeBar.classList.replace('bg-error', 'bg-secondary');
-    }
-    
-    isPresenting = true;
-    drawVolume();
-    
-    // STT
-    fullRecognizedText = '';
-    sttResult.innerHTML = '';
-    resetHabits();
-    if (recognition) {
-        try { recognition.start(); } catch(e){}
-    }
+    // 1. WebSocket connect
+    ws = new WebSocket('ws://localhost:3001');
+    ws.onopen = async () => {
+        ws.send(JSON.stringify({ action: 'start' }));
 
-    // UI Updates
-    startBtn.classList.add('hidden');
-    endBtn.classList.remove('hidden');
-    
-    micStatusIcon.classList.replace('bg-surface-variant', 'bg-primary-container');
-    micStatusIcon.classList.add('animate-pulse');
-    micStatusIcon.innerHTML = `<span class="material-symbols-outlined text-on-primary-container" style="font-variation-settings: 'FILL' 1;">mic</span>`;
-    
-    statusDot.classList.replace('bg-surface-variant', 'bg-tertiary-fixed');
-    statusDot.classList.add('animate-pulse', 'shadow-[0_0_8px_#96f996]');
-    statusText.innerText = '🟢 실시간 분석 중';
-    
-    startTime = Date.now();
-    
+        // 2. Start Audio/Video
+        mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: {
+            channelCount: 1,
+            sampleRate: 16000
+        }});
+        
+        cameraFeed.srcObject = mediaStream;
+        cameraFallback.classList.add('hidden');
+        cameraFeed.classList.remove('hidden');
+        
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        await audioContext.audioWorklet.addModule(workletUrl);
+        
+        microphone = audioContext.createMediaStreamSource(mediaStream);
+        audioWorkletNode = new AudioWorkletNode(audioContext, 'resampler-processor');
+        
+        audioWorkletNode.port.onmessage = (event) => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                // Send PCM Int16 buffer
+                ws.send(event.data);
+            }
+        };
+
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 256;
+        
+        microphone.connect(analyser);
+        microphone.connect(audioWorkletNode);
+        // Note: we don't connect audioWorkletNode to destination to avoid feedback
+        
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+        
+        function drawVolume() {
+            if (!isPresenting) return;
+            volumeAnimation = requestAnimationFrame(drawVolume);
+            
+            analyser.getByteFrequencyData(dataArray);
+            let sum = 0;
+            for(let i = 0; i < bufferLength; i++) { sum += dataArray[i]; }
+            let average = sum / bufferLength;
+            
+            let percentage = Math.min(100, Math.max(0, (average / 100) * 100));
+            let dbEstimate = Math.round(average / 2);
+            
+            volumeBar.style.width = `${percentage}%`;
+            volumeText.innerText = `${dbEstimate} dB`;
+            
+            if (percentage > 80) volumeBar.classList.replace('bg-secondary', 'bg-error');
+            else volumeBar.classList.replace('bg-error', 'bg-secondary');
+        }
+        
+        isPresenting = true;
+        drawVolume();
+        
+        fullRecognizedText = '';
+        sttResult.innerHTML = '<span class="text-on-surface-variant italic opacity-70">서버에 연결되었습니다. 인식 중...</span>';
+        resetHabits();
+
+        startBtn.classList.add('hidden');
+        endBtn.classList.remove('hidden');
+        
+        micStatusIcon.classList.replace('bg-surface-variant', 'bg-primary-container');
+        micStatusIcon.classList.add('animate-pulse');
+        micStatusIcon.innerHTML = `<span class="material-symbols-outlined text-on-primary-container" style="font-variation-settings: 'FILL' 1;">mic</span>`;
+        
+        statusDot.classList.replace('bg-surface-variant', 'bg-tertiary-fixed');
+        statusDot.classList.add('animate-pulse', 'shadow-[0_0_8px_#96f996]');
+        statusText.innerText = '🟢 스트리밍 연결됨';
+        
+        startTime = Date.now();
+    };
+
+    ws.onmessage = handleWebSocketMessage;
+    ws.onclose = () => {
+        console.log("WebSocket connection closed.");
+    };
+
   } catch (err) {
-    console.error('카메라/마이크 권한 획득 실패:', err);
-    alert('카메라와 마이크 권한이 필요합니다. 브라우저 설정에서 허용해주세요.');
+    console.error('시작 오류:', err);
+    alert('카메라/마이크 접근 권한이 없거나 서버(ws://localhost:3001)에 연결할 수 없습니다. server.js가 실행 중인지 확인해주세요.');
   }
 }
 
 function endPresentation() {
   isPresenting = false;
+  
+  if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ action: 'stop' }));
+      ws.close();
+  }
   
   if (mediaStream) {
     mediaStream.getTracks().forEach(track => track.stop());
@@ -346,17 +348,20 @@ function endPresentation() {
     cameraFeed.classList.add('hidden');
     cameraFallback.classList.remove('hidden');
   }
+  
+  if (audioWorkletNode) {
+      audioWorkletNode.disconnect();
+  }
+  if (microphone) {
+      microphone.disconnect();
+  }
   if (audioContext) {
     audioContext.close();
   }
   if (volumeAnimation) {
     cancelAnimationFrame(volumeAnimation);
   }
-  if (recognition) {
-    try { recognition.stop(); } catch(e){}
-  }
 
-  // UI Revert
   startBtn.classList.remove('hidden');
   endBtn.classList.add('hidden');
   
