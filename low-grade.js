@@ -5,6 +5,7 @@ const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
 let targetSentence = "로딩 중...";
 let currentMode = 'story'; // 'story' | 'practice' | 'finished'
+let practiceAttemptCount = 0;
 let recommendedWordsCache = "";
 let worstWordCache = "";
 
@@ -80,6 +81,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   practiceBtn.addEventListener('click', () => {
     currentMode = 'practice';
+    practiceAttemptCount = 0;
     targetSentence = recommendedWordsCache;
     renderSentence(targetSentence);
     recommendationBox.style.display = 'none';
@@ -287,15 +289,23 @@ document.addEventListener('DOMContentLoaded', async () => {
       let detailMsg = "";
 
       if (currentMode === 'practice') {
-        if (score >= 90) {
+        practiceAttemptCount++;
+        if (score >= 80) {
           feedbackMsg = `우와, 정말 대단해! 오늘 어려운 글자 '${worstWordCache}'(을)를 완벽하게 마스터했어! 발음 점수 ${score}점!`;
           detailMsg = `요정이 ${score}점을 주었어요! 이제 어떤 단어든 자신감 있게 읽을 수 있어요.`;
           currentMode = 'finished';
           micText.innerText = '새로운 지문 도전하기';
           micIcon.innerText = 'stars';
           micBtn.classList.replace('chunky-button-secondary', 'chunky-button-primary');
+        } else if (practiceAttemptCount >= 2) {
+          feedbackMsg = `두 번이나 열심히 도전하다니 정말 멋져! 연습 단어는 여기까지 하고, 다음 이야기로 넘어가 볼까?`;
+          detailMsg = `노력 점수로 별 요정이 칭찬 스티커를 주었어요! 다음 문장으로 넘어갈 수 있어요.`;
+          currentMode = 'finished';
+          micText.innerText = '새로운 지문 도전하기';
+          micIcon.innerText = 'stars';
+          micBtn.classList.replace('chunky-button-secondary', 'chunky-button-primary');
         } else {
-          feedbackMsg = `거의 다 왔어! 연습 단어들을 조금만 더 뚜렷하게 다시 읽어볼까?`;
+          feedbackMsg = `거의 다 왔어! 연습 단어들을 조금만 더 뚜렷하게 다시 읽어볼까? (남은 기회: 1번)`;
           detailMsg = `현재 점수: ${score}점. 천천히 한 글자씩 또박또박 소리 내어 보세요!`;
         }
       } else {
