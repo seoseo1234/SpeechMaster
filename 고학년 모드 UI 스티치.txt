@@ -1,0 +1,246 @@
+<!DOCTYPE html><html class="light" lang="ko" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Quicksand:wght@500;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=block" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">try{
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary-fixed": "#96f996",
+                    "secondary": "#0c6780",
+                    "outline-variant": "#d0c6ab",
+                    "outline": "#7e775f",
+                    "inverse-primary": "#e9c400",
+                    "surface-variant": "#e4e3d7",
+                    "on-tertiary-fixed-variant": "#005316",
+                    "on-surface": "#1b1c15",
+                    "inverse-on-surface": "#f2f1e5",
+                    "primary-fixed-dim": "#e9c400",
+                    "on-primary-container": "#705e00",
+                    "background": "#fbfaee",
+                    "surface-container-highest": "#e4e3d7",
+                    "on-tertiary": "#ffffff",
+                    "on-error": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "secondary-fixed": "#baeaff",
+                    "on-tertiary-fixed": "#002105",
+                    "tertiary": "#006e21",
+                    "primary": "#705d00",
+                    "on-secondary-container": "#09657f",
+                    "tertiary-container": "#8ef08e",
+                    "surface": "#fbfaee",
+                    "secondary-fixed-dim": "#89d0ed",
+                    "surface-tint": "#705d00",
+                    "on-surface-variant": "#4d4732",
+                    "error": "#ba1a1a",
+                    "surface-container": "#efeee3",
+                    "surface-bright": "#fbfaee",
+                    "error-container": "#ffdad6",
+                    "surface-container-low": "#f5f4e8",
+                    "on-secondary-fixed-variant": "#004d62",
+                    "on-background": "#1b1c15",
+                    "on-secondary": "#ffffff",
+                    "on-primary-fixed-variant": "#544600",
+                    "inverse-surface": "#303129",
+                    "on-tertiary-container": "#006f21",
+                    "surface-dim": "#dbdbcf",
+                    "primary-container": "#ffd700",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-container-high": "#e9e9dd",
+                    "on-primary": "#ffffff",
+                    "secondary-container": "#9ae1ff",
+                    "primary-fixed": "#ffe16d",
+                    "on-primary-fixed": "#221b00",
+                    "tertiary-fixed-dim": "#7adc7d",
+                    "on-secondary-fixed": "#001f29"
+            },
+            "borderRadius": {
+                    "DEFAULT": "1rem",
+                    "lg": "2rem",
+                    "xl": "3rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "component-padding-md": "20px",
+                    "stack-gap": "24px",
+                    "component-padding-lg": "32px",
+                    "gutter": "16px",
+                    "component-padding-sm": "12px",
+                    "unit": "8px",
+                    "container-margin": "24px"
+            },
+            "fontFamily": {
+                    "headline-xl-mobile": ["Plus Jakarta Sans"],
+                    "headline-md": ["Plus Jakarta Sans"],
+                    "label-lg": ["Quicksand"],
+                    "headline-xl": ["Plus Jakarta Sans"],
+                    "body-lg": ["Quicksand"],
+                    "headline-lg": ["Plus Jakarta Sans"],
+                    "body-md": ["Quicksand"]
+            },
+            "fontSize": {
+                    "headline-xl-mobile": ["32px", {"lineHeight": "38px", "fontWeight": "800"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "label-lg": ["16px", {"lineHeight": "24px", "fontWeight": "700"}],
+                    "headline-xl": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                    "body-lg": ["20px", {"lineHeight": "30px", "fontWeight": "500"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "700"}],
+                    "body-md": ["18px", {"lineHeight": "28px", "fontWeight": "500"}]
+            }
+          },
+        },
+      }
+    }catch(_e){}</script>
+<style>
+    .custom-scroll::-webkit-scrollbar { width: 6px; }
+    .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #d0c6ab; border-radius: 10px; }
+    .volume-bar-pulse { transition: width 0.3s ease-out; }
+    .chunky-button { position: relative; transition: all 0.2s ease; border: 2px solid #004d62; }
+    .chunky-button:active { transform: translateY(4px); }
+    .chunky-button .shadow-layer { position: absolute; top: 4px; left: 0; width: 100%; height: 100%; z-index: -1; border-radius: inherit; }
+</style>
+</head>
+<body class="bg-surface-container-low font-body-md text-on-surface min-h-screen flex flex-col">
+<!-- Floating Instruction (Far Left) -->
+<!-- TopAppBar -->
+<header class="bg-surface border-b-4 border-outline-variant z-50 flex justify-between items-center w-full px-container-margin py-unit h-20 sticky top-0 bg-surface-container-low">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary text-headline-md">home</span>
+<h1 class="font-headline-md text-headline-md text-primary tracking-tight whitespace-nowrap">AI 스피치마스터 (고학년 발표 모드)</h1>
+</div>
+<div class="flex items-center gap-6">
+<span class="material-symbols-outlined text-on-surface-variant hover:scale-105 transition-transform cursor-pointer">settings</span>
+<div class="bg-primary-container p-2 rounded-full flex items-center justify-center animate-pulse">
+<span class="material-symbols-outlined text-on-primary-container" style="font-variation-settings: &quot;FILL&quot; 1;">mic</span>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-grow flex flex-col md:flex-row p-container-margin gap-stack-gap">
+<!-- Left Side: Script Section (Narrowed Width) -->
+<section class="w-full md:w-[48%] flex flex-col gap-4">
+<!-- Title Box (Split from content) -->
+<div class="bg-white border-2 border-outline-variant rounded-lg p-5 shadow-[4px_4px_0px_#d0c6ab] flex items-center justify-between">
+<h2 class="font-headline-lg text-headline-lg text-secondary flex items-center gap-2"><span class="material-symbols-outlined">description</span> 나의 발표 대본 (원본)</h2>
+<span class="text-on-surface-variant font-label-lg bg-surface-container px-3 py-1 rounded-full">312 단어</span>
+</div>
+<!-- Script Content Box -->
+<div class="bg-white border-2 border-outline-variant rounded-lg shadow-[4px_4px_0px_#d0c6ab] p-8 overflow-hidden flex flex-col h-80">
+<div class="flex-grow overflow-y-auto custom-scroll pr-4 space-y-8"><p class="font-body-lg leading-relaxed text-on-surface text-2xl opacity-40" style="border-left: 4px solid transparent; padding-left: 0px; transition: 0.4s;">안녕하십니까? 오늘 저는 우리 학교 운동장 <span class="bg-secondary-container px-2 py-0.5 rounded">잔디 조성의 필요성</span>에 대해 발표하겠습니다.</p><p class="font-body-lg leading-relaxed text-on-surface text-2xl opacity-40" style="border-left: 4px solid transparent; padding-left: 0px; transition: 0.4s;"> 일단 현재 우리 학교 운동장은 흙이 많아서 먼지가 날리고, 비가 오면 물이 고여 활동하기가 매우 힘듭니다.</p><p class="font-body-lg leading-relaxed text-on-surface text-2xl opacity-40" style="border-left: 4px solid transparent; padding-left: 0px; transition: 0.4s;">이러한 문제를 해결하기 위해 천연 잔디나 인조 잔디를 설치한다면 학생들의 <span class="bg-tertiary-container px-2 py-0.5 rounded">안전한 체육 활동</span>을 보장할 수 있을 뿐만 아니라, 학교의 전반적인 미관도 크게 개선될 것입니다.</p><p class="font-body-lg leading-relaxed text-on-surface text-2xl opacity-100" style="border-left: 4px solid rgb(12, 103, 128); padding-left: 16px; transition: 0.4s;"><span class="text-error font-bold italic underline decoration-2 underline-offset-4">그..</span> 또한 녹지 공간이 늘어남에 따라 학생들의 정서적 안정에도 큰 도움을 줄 수 있다고 생각합니다. 이상으로 발표를 마치겠습니다. 감사합니다.</p></div>
+</div><div class="flex flex-col gap-4 mt-4"><div class="bg-secondary-container/20 border-2 border-secondary/20 rounded-lg p-5 shadow-[4px_4px_0px_#89d0ed] flex items-center justify-between"><h2 class="font-headline-md text-headline-md text-secondary flex items-center gap-2"><span class="material-symbols-outlined">record_voice_over</span> 실시간 내 목소리 (STT 결과)</h2></div><div class="bg-white border-2 border-secondary/20 rounded-lg shadow-[4px_4px_0px_#89d0ed] p-6 flex flex-col"><p class="font-body-lg leading-relaxed text-on-surface text-xl opacity-40" style="border-left: 4px solid transparent; padding-left: 0px; transition: 0.4s;">안녕하십니까? 오늘 저는 우리 학교 운동장 잔디 조성의 필요성에 대해 발표하겠습니다. <span class="text-error font-bold italic underline decoration-2 underline-offset-4">어..</span></p></div></div>
+</section>
+<!-- Right Side: Camera & Sensors (Balanced width) -->
+<section class="flex-1 flex flex-col gap-stack-gap h-[calc(100vh-200px)]">
+<!-- Camera Feed -->
+<div class="bg-inverse-surface rounded-lg relative overflow-hidden aspect-video flex-shrink-0 shadow-[4px_4px_0px_#303129]">
+<div class="absolute inset-0 bg-black/20 z-10"></div>
+<div class="absolute inset-0 z-0">
+<img alt="A focused student practicing speech with AI tracking overlay" class="w-full h-full object-cover grayscale-[0.3]" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCGkW2Mwh8Mt4IagQzDhkooLJX00eIr7-JdzPANSe0SYa7PkAuRYrP6S3BvmFXM6nRY34M3mmNqnAD3KP5tsgq9SvTWsms3BG5x1U-wHqzudKHqAipU_znAoZC3wLmC4LOEEfldiSsQaVKXcQ8MgUGaijgRANc9yvpGbD-E6OYSU07owljq4RsnO-loPVDmCvAU7DbOoOcQAWiBUJWqZio4xQ7MCpZPt-8BZSf-ANTBuCsqp2cJU-8gZb8jIg9WSzpH678ngB7Cng">
+</div>
+<!-- MediaPipe Overlay -->
+<div class="absolute top-4 left-4 z-20 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20">
+<div class="w-2.5 h-2.5 bg-tertiary-fixed rounded-full animate-pulse shadow-[0_0_8px_#96f996]"></div>
+<span class="text-white text-sm font-bold">🟢 정면 응시 중</span>
+</div>
+<div class="absolute bottom-4 right-4 z-20">
+<div class="bg-secondary px-3 py-1 rounded text-white text-xs font-bold uppercase tracking-widest">Live Feed</div>
+</div>
+</div>
+<!-- Volume Indicator -->
+<div class="bg-white border-2 border-outline-variant rounded-lg p-5 shadow-[4px_4px_0px_#d0c6ab]">
+<div class="flex justify-between items-center mb-3">
+<h3 class="font-label-lg text-label-lg text-on-surface-variant flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary">volume_up</span>
+                    음성 볼륨
+                </h3>
+<span class="text-secondary font-bold whitespace-nowrap">62.5 dB (안정)</span>
+</div>
+<div class="h-6 bg-surface-container-highest rounded-full overflow-hidden border border-outline-variant">
+<div class="h-full bg-secondary volume-bar-pulse relative w-[62.5%]" style="width: 66.2186%;">
+<div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+</div>
+</div>
+<div class="flex justify-between mt-2 text-[10px] text-outline font-bold uppercase">
+<span class="">Quiet</span>
+<span class="">Normal</span>
+<span class="">Loud</span>
+</div>
+</div>
+<!-- Habitual Word Warning -->
+<div class="bg-white border-2 border-outline-variant rounded-lg p-5 flex-grow shadow-[4px_4px_0px_#d0c6ab]">
+<h3 class="font-label-lg text-label-lg text-on-surface-variant flex items-center gap-2 mb-4">
+<span class="material-symbols-outlined text-error">warning</span>
+                실시간 습관어 경고
+            </h3>
+<div class="space-y-3">
+<div class="flex items-center justify-between p-3 bg-error-container/30 rounded-lg border border-error/20">
+<div class="flex items-center gap-3">
+<span class="text-headline-md font-bold text-error">'어..'</span>
+<span class="text-on-surface-variant text-sm">반복 사용 주의</span>
+</div>
+<span class="text-error font-extrabold text-2xl">2회</span>
+</div>
+<div class="flex items-center justify-between p-3 bg-surface-container rounded-lg border border-outline-variant opacity-60">
+<div class="flex items-center gap-3">
+<span class="text-headline-md font-bold text-on-surface-variant">'음..'</span>
+<span class="text-on-surface-variant text-sm">검출되지 않음</span>
+</div>
+<span class="text-on-surface-variant font-extrabold text-2xl">0회</span>
+</div>
+</div>
+<div class="mt-6 p-4 bg-secondary-fixed/20 rounded-lg">
+<p class="text-sm text-secondary leading-tight font-medium">
+                    💡 <span class="font-bold">Pro Tip:</span> 문장 사이의 침묵은 실수가 아닙니다. '어..' 대신 잠깐 멈추어 호흡해 보세요.
+                </p>
+</div>
+</div>
+</section>
+</main>
+<!-- Bottom Action Bar -->
+<footer class="bg-surface-container border-t-4 border-outline-variant w-full h-32 flex items-center justify-center px-container-margin z-50">
+<button class="chunky-button bg-secondary text-white px-12 py-5 rounded-lg font-headline-md text-headline-md w-full max-w-2xl hover:scale-[1.02] active:scale-[0.98] transition-transform flex items-center justify-center gap-4 group">
+<span class="material-symbols-outlined group-hover:rotate-12 transition-transform">analytics</span>
+        발표 종료 및 AI 분석하기
+        <div class="shadow-layer bg-[#004d62]"></div>
+</button>
+</footer>
+<script>
+    // Micro-interactions for live-feeling UI
+    const volumeBar = document.querySelector('.volume-bar-pulse');
+    setInterval(() => {
+        if(volumeBar) {
+            const randomFluctuation = 60 + Math.random() * 8;
+            volumeBar.style.width = `${randomFluctuation}%`;
+        }
+    }, 800);
+
+    // Highlight effect for the script as "scanned/read"
+    const scriptLines = document.querySelectorAll('main section p.font-body-lg');
+    let currentLine = 0;
+    
+    setInterval(() => {
+        scriptLines.forEach(line => {
+            line.classList.remove('opacity-100');
+            line.classList.add('opacity-40');
+            line.style.borderLeft = '4px solid transparent';
+            line.style.paddingLeft = '0px';
+        });
+        
+        if (scriptLines[currentLine]) {
+            scriptLines[currentLine].classList.remove('opacity-40');
+            scriptLines[currentLine].classList.add('opacity-100');
+            scriptLines[currentLine].style.borderLeft = '4px solid #0c6780';
+            scriptLines[currentLine].style.paddingLeft = '16px';
+            scriptLines[currentLine].style.transition = 'all 0.4s ease';
+        }
+        
+        currentLine = (currentLine + 1) % scriptLines.length;
+    }, 5000);
+</script>
+
+
+</body></html>
