@@ -1,6 +1,6 @@
 // Import environment variables via Vite
-const invokeUrl = import.meta.env.VITE_CLOVA_INVOKE_URL;
-const secretKey = import.meta.env.VITE_CLOVA_SECRET_KEY;
+const invokeUrl = import.meta.env.VITE_CLOVA_SHORT_INVOKE_URL;
+const secretKey = import.meta.env.VITE_CLOVA_SHORT_SECRET_KEY;
 const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
 let targetSentence = "로딩 중...";

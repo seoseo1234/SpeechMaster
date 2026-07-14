@@ -25,10 +25,10 @@ const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
 const protoDescriptor = grpc.loadPackageDefinition(packageDefinition);
 const nest = protoDescriptor.com.nbp.cdncp.nest.grpc.proto.v1;
 
-// Clova API Key
-const CLOVA_SECRET_KEY = process.env.VITE_CLOVA_SECRET_KEY;
+// Clova API Key (High Grade / Streaming)
+const CLOVA_SECRET_KEY = process.env.VITE_CLOVA_STREAM_SECRET_KEY;
 if (!CLOVA_SECRET_KEY) {
-    console.warn("WARNING: VITE_CLOVA_SECRET_KEY is not defined in .env");
+    console.warn("WARNING: VITE_CLOVA_STREAM_SECRET_KEY is not defined in .env");
 }
 
 wss.on('connection', (ws) => {
