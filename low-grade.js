@@ -156,18 +156,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   updateNameUI();
 
   function updateFairyUI() {
-    const fairyAvatar = document.querySelector('.bg-primary-container.rounded-full');
-    const fairyName = document.querySelector('.text-primary-dark');
-    if (!fairyAvatar || !fairyName) return;
+    const fairyImg = document.getElementById('fairy-img');
+    const fairyName = document.getElementById('fairy-name');
+    if (!fairyImg || !fairyName) return;
 
     if (appSettings.fairy === 'star') {
-      fairyAvatar.innerHTML = '<span class="text-3xl">⭐</span>';
+      fairyImg.src = '/star_fairy.png';
       fairyName.innerText = '별 요정';
     } else if (appSettings.fairy === 'cloud') {
-      fairyAvatar.innerHTML = '<span class="text-3xl">☁️</span>';
+      fairyImg.src = '/cloud_fairy.png';
       fairyName.innerText = '구름 요정';
     } else {
-      fairyAvatar.innerHTML = '<span class="text-3xl">🌰</span>';
+      fairyImg.src = 'https://lh3.googleusercontent.com/aida-public/AB6AXuBnyKAcpBdpALAMrY5wU0_mKqXcxmEHcuKMwPEA8g4Rpue_UFZzwreswCtEnBT8mtKAG3-6O4gh_E5RQxfV-AYNWNL0XQ5EazEuEDL5SlHfo8izfO2TRZs4a_1_hucpbKvfbd_fWja5K6UzesXpcuKwPQ8drVwFs21MdMXCfxsAMg-kHUVTDCGcNAcj_vRyUfZ5T25AFzfXigScRbbZeWUTEp1xn5UuDanh-YeVGfbj8t92wP13sLXJPkBquoeXaO_X7M8Hg9yHbg';
       fairyName.innerText = '도토리 요정';
     }
   }
