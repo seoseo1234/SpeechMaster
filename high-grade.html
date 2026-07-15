@@ -62,12 +62,19 @@
             </h1>
         </div>
         <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2 bg-white text-black px-4 py-2 border-2 border-black hidden sm:flex">
+                <span class="material-symbols-outlined">person</span>
+                <span id="student-name-display" class="font-bold">학생</span>
+            </div>
             <button id="settings-btn" class="brutalist-button bg-white p-3 flex items-center justify-center">
                 <span class="material-symbols-outlined text-black font-bold">settings</span>
             </button>
             <div id="mic-status-icon" class="brutalist-button bg-surface-variant p-3 flex items-center justify-center transition-colors">
                 <span class="material-symbols-outlined text-white font-bold" style="font-variation-settings: 'FILL' 1;">mic_off</span>
             </div>
+            <button id="btn-logout" class="brutalist-button bg-secondary text-black p-3 hover:bg-yellow-300 flex items-center justify-center ml-2">
+                <span class="material-symbols-outlined">logout</span>
+            </button>
         </div>
     </header>
 

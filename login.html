@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>로그인 - AI SpeechMaster Pro</title>
+  <link rel="stylesheet" href="index.css">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700;800&family=Quicksand:wght@500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            'display': ['"Plus Jakarta Sans"', 'sans-serif'],
+            'body': ['"Quicksand"', 'sans-serif'],
+          },
+          colors: {
+            primary: '#FF3B30',
+            secondary: '#FDE047',
+            tertiary: '#3B82F6',
+            surface: '#F3F4F6',
+            'surface-variant': '#E5E7EB',
+            error: '#EF4444',
+            success: '#22C55E'
+          },
+          boxShadow: {
+            'brutalist': '8px 8px 0px 0px rgba(0,0,0,1)',
+            'brutalist-sm': '4px 4px 0px 0px rgba(0,0,0,1)',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Quicksand', sans-serif; background-color: var(--color-canvas); }
+    .brutalist-card { border: 4px solid #000; box-shadow: 8px 8px 0px 0px #000; background-color: #fff; }
+    .brutalist-input { border: 4px solid #000; outline: none; background-color: var(--color-surface-variant); transition: all 0.2s; }
+    .brutalist-input:focus { background-color: #fff; box-shadow: 4px 4px 0px 0px #000; }
+    .brutalist-button { border: 4px solid #000; box-shadow: 4px 4px 0px 0px #000; transition: all 0.1s; cursor: pointer; }
+    .brutalist-button:active { transform: translate(4px, 4px); box-shadow: 0px 0px 0px 0px #000; }
+  </style>
+</head>
+<body class="min-h-screen bg-surface flex flex-col">
+
+  <!-- Header -->
+  <header class="border-b-4 border-black bg-white p-4 sticky top-0 z-50">
+      <div class="container mx-auto flex justify-between items-center">
+          <a href="index.html" class="font-display font-black text-2xl tracking-tighter uppercase flex items-center gap-2">
+              <span class="material-symbols-outlined text-4xl text-primary font-bold">mic_external_on</span>
+              AI SpeechMaster Pro
+          </a>
+      </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-grow flex items-center justify-center p-4">
+    <div class="brutalist-card w-full max-w-md p-8 relative">
+        <h1 class="text-3xl font-black mb-6 text-center font-display uppercase tracking-tight">Login / Register</h1>
+        
+        <!-- Role Tabs -->
+        <div class="flex gap-4 mb-8">
+            <button id="tab-student" class="flex-1 brutalist-button bg-secondary text-black font-bold py-3 text-lg border-b-8">👨‍🎓 학생</button>
+            <button id="tab-teacher" class="flex-1 brutalist-button bg-surface text-gray-500 font-bold py-3 text-lg border-b-4 opacity-70">👩‍🏫 교사</button>
+        </div>
+
+        <p id="role-desc" class="text-center font-bold text-gray-600 mb-6">학생 계정으로 접속하여 스피치 연습을 시작합니다.</p>
+
+        <!-- Form -->
+        <form id="login-form" class="flex flex-col gap-4">
+            <div>
+                <label class="font-black block mb-2">이름 (학생/교사명)</label>
+                <input type="text" id="name-input" class="w-full brutalist-input p-3 font-bold text-lg" placeholder="이름을 입력하세요 (처음 가입시 필수)" required>
+            </div>
+            <div>
+                <label class="font-black block mb-2">이메일</label>
+                <input type="email" id="email-input" class="w-full brutalist-input p-3 font-bold text-lg" placeholder="example@school.com" required>
+            </div>
+            <div>
+                <label class="font-black block mb-2">비밀번호</label>
+                <input type="password" id="password-input" class="w-full brutalist-input p-3 font-bold text-lg" placeholder="••••••••" required>
+            </div>
+            
+            <button type="submit" id="btn-email-login" class="brutalist-button bg-black text-white font-black py-4 text-xl mt-4 uppercase">
+                이메일로 계속하기 (가입/로그인)
+            </button>
+        </form>
+
+        <div class="flex items-center gap-4 my-6">
+            <div class="h-1 bg-black flex-1"></div>
+            <span class="font-black text-gray-400">OR</span>
+            <div class="h-1 bg-black flex-1"></div>
+        </div>
+
+        <button id="btn-google-login" class="w-full brutalist-button bg-white text-black font-black py-4 text-lg flex items-center justify-center gap-3">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google" class="w-6 h-6">
+            Google 계정으로 로그인
+        </button>
+
+        <!-- Loading Overlay -->
+        <div id="auth-loading" class="absolute inset-0 bg-white/90 backdrop-blur-sm hidden flex-col items-center justify-center z-10 border-4 border-black">
+            <span class="material-symbols-outlined animate-spin text-6xl text-primary mb-4">sync</span>
+            <span class="font-black text-xl animate-pulse">인증 처리 중...</span>
+        </div>
+    </div>
+  </main>
+
+  <script type="module" src="./login.js"></script>
+</body>
+</html>

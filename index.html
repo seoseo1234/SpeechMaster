@@ -6,7 +6,8 @@
   <link rel="stylesheet" href="index.css">
   <style>
     .hero-section {
-      height: 60vh;
+      position: relative;
+      height: 70vh;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -14,44 +15,421 @@
       text-align: center;
       border-bottom: 1px solid var(--color-hairline);
       background: var(--color-canvas);
+      overflow: hidden;
     }
+
+    /* Ambient Background Glows */
+    .hero-section::before {
+      content: '';
+      position: absolute;
+      top: -30%;
+      left: 20%;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(1, 123, 198, 0.08) 0%, rgba(255,255,255,0) 70%);
+      border-radius: 50%;
+      z-index: 0;
+      animation: floatOrbs 10s ease-in-out infinite alternate;
+    }
+    .hero-section::after {
+      content: '';
+      position: absolute;
+      bottom: -30%;
+      right: 20%;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(67, 160, 71, 0.05) 0%, rgba(255,255,255,0) 70%);
+      border-radius: 50%;
+      z-index: 0;
+      animation: floatOrbs 8s ease-in-out infinite alternate-reverse;
+    }
+
+    @keyframes floatOrbs {
+      0% { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(30px, -50px) scale(1.1); }
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 1;
+      max-width: 800px;
+    }
+
+    .hero-badge {
+      display: inline-block;
+      padding: 6px 16px;
+      border-radius: 100px;
+      background: #f0f4f8;
+      border: 1px solid #dfe0e2;
+      color: #017bc6;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      margin-bottom: 24px;
+    }
+
     .hero-section h2 {
-      font-size: 40px;
-      margin-bottom: 16px;
+      font-size: 56px;
+      font-weight: 800;
+      letter-spacing: -2px;
+      line-height: 1.15;
+      margin-bottom: 24px;
+      color: var(--color-ink-heading);
     }
+    
+    .hero-highlight {
+      background: linear-gradient(135deg, #017bc6 0%, #43a047 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
     .hero-section p {
       color: var(--color-muted);
-      font-size: 16px;
+      font-size: 20px;
+      line-height: 1.6;
       margin-bottom: 40px;
+    }
+
+    .scroll-indicator {
+      position: absolute;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      color: #979799; /* var(--color-faint) */
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      z-index: 1;
+      animation: bounce 2s infinite;
+    }
+    .scroll-indicator svg {
+      width: 24px;
+      height: 24px;
+      margin-bottom: 8px;
+    }
+
+    @keyframes bounce {
+      0%, 20%, 50%, 80%, 100% { transform: translate(-50%, 0); }
+      40% { transform: translate(-50%, -10px); }
+      60% { transform: translate(-50%, -5px); }
     }
     .mode-cards {
       display: flex;
-      gap: 24px;
+      gap: 32px;
       justify-content: center;
-      padding: 64px 0;
+      padding: 80px 24px;
       background: var(--color-surface);
     }
     .mode-card {
-      width: 300px;
-      padding: 40px 24px;
+      width: 360px;
+      padding: 0 0 32px 0;
       text-align: center;
       background: var(--color-canvas);
       border: 1px solid var(--color-hairline);
-      transition: all 0.2s ease;
+      border-radius: 24px;
+      overflow: hidden;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
       cursor: pointer;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.05);
     }
     .mode-card:hover {
-      background: var(--color-surface-alt);
+      transform: translateY(-8px);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+      border-color: rgba(1, 123, 198, 0.3);
+    }
+    .card-image-wrapper {
+      width: 100%;
+      height: 220px;
+      background: #f0f4f8;
+      margin-bottom: 24px;
+      overflow: hidden;
+    }
+    .card-image-wrapper img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.5s ease;
+    }
+    .mode-card:hover .card-image-wrapper img {
+      transform: scale(1.05);
     }
     .mode-card h3 {
-      margin: 16px 0 8px;
+      font-size: 22px;
+      font-weight: 700;
+      margin: 0 0 12px;
+      color: var(--color-ink-heading);
     }
     .mode-card p {
       color: var(--color-muted);
-      font-size: 14px;
+      font-size: 15px;
+      line-height: 1.6;
+      padding: 0 24px;
     }
-    .icon-placeholder {
+
+    /* ------------------------------------- */
+    /* Premium Modern Features Section       */
+    /* ------------------------------------- */
+    .premium-features {
+      position: relative;
+      background: #050505;
+      color: #ffffff;
+      padding: 100px 24px;
+      overflow: hidden;
+      border-top: 1px solid #222;
+    }
+    
+    /* Animated Background Glow */
+    .premium-features::before {
+      content: '';
+      position: absolute;
+      top: -20%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 800px;
+      height: 800px;
+      background: radial-gradient(circle, rgba(1,123,198,0.15) 0%, rgba(0,0,0,0) 70%);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 0;
+      animation: pulseGlow 8s infinite alternate;
+    }
+
+    @keyframes pulseGlow {
+      0% { opacity: 0.5; transform: translateX(-50%) scale(1); }
+      100% { opacity: 1; transform: translateX(-50%) scale(1.1); }
+    }
+
+    .features-header {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      margin-bottom: 80px;
+    }
+
+    .features-badge {
+      display: inline-block;
+      padding: 6px 16px;
+      border-radius: 100px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #aaa;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      margin-bottom: 24px;
+      text-transform: uppercase;
+      box-shadow: 0 0 20px rgba(255,255,255,0.02);
+    }
+
+    .features-header h2 {
       font-size: 48px;
+      font-weight: 800;
+      letter-spacing: -1.5px;
+      background: linear-gradient(135deg, #ffffff 0%, #a0a0a0 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 16px;
+      color: #fff; /* fallback */
+    }
+
+    .features-header p {
+      color: #888;
+      font-size: 18px;
+      max-width: 600px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    /* Bento Grid Layout */
+    .features-split-layout {
+      display: flex;
+      gap: 40px;
+      max-width: 1300px;
+      margin: 0 auto;
+      align-items: flex-start;
+      position: relative;
+      z-index: 1;
+    }
+
+    .bento-grid-left {
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      grid-auto-rows: minmax(240px, auto);
+      gap: 24px;
+    }
+
+    .feature-detail-right {
+      position: sticky;
+      top: 100px;
+      width: 420px;
+      min-height: 500px;
+      background: rgba(15, 15, 15, 0.6);
+      backdrop-filter: blur(30px);
+      -webkit-backdrop-filter: blur(30px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 32px;
+      padding: 48px 36px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 40px 80px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.05);
+      overflow: hidden;
+    }
+
+    .feature-detail-right.active {
+      border-color: rgba(1, 123, 198, 0.4);
+      box-shadow: 0 40px 80px rgba(0,0,0,0.6), 0 0 80px rgba(1,123,198,0.15), inset 0 0 0 1px rgba(255,255,255,0.05);
+    }
+
+    .detail-content {
+      animation: fadeIn 0.4s ease forwards;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(15px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .detail-icon-large {
+      font-size: 72px;
+      margin-bottom: 24px;
+      text-shadow: 0 0 30px rgba(255,255,255,0.2);
+    }
+    .detail-title {
+      font-size: 32px;
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 20px;
+      letter-spacing: -1px;
+      line-height: 1.2;
+    }
+    .detail-desc {
+      color: #a0a0a0;
+      font-size: 16px;
+      line-height: 1.7;
+      margin-bottom: 32px;
+    }
+    .detail-highlight {
+      background: rgba(1, 123, 198, 0.1);
+      border-left: 4px solid #017bc6;
+      padding: 20px;
+      border-radius: 0 12px 12px 0;
+      color: #e0e0e0;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .bento-item {
+      position: relative;
+      background: rgba(25, 25, 25, 0.4);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 24px;
+      padding: 40px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .bento-item:hover {
+      transform: translateY(-4px);
+      border-color: rgba(255, 255, 255, 0.2);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(255,255,255,0.05);
+    }
+
+    /* Gradient Border effect on hover */
+    .bento-item::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      border-radius: 24px;
+      padding: 2px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 100%);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      pointer-events: none;
+    }
+    
+    .bento-item:hover::after {
+      opacity: 1;
+    }
+
+    /* Grid Spanning */
+    .bento-large {
+      grid-column: span 2;
+    }
+    .bento-tall {
+      grid-row: span 2;
+    }
+
+    /* Content Styling */
+    .bento-icon {
+      font-size: 32px;
+      margin-bottom: 24px;
+      background: rgba(255,255,255,0.05);
+      width: 64px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .bento-item h3 {
+      color: #fff;
+      font-size: 24px;
+      margin-bottom: 12px;
+      letter-spacing: -0.5px;
+    }
+
+    .bento-item p {
+      color: #999;
+      font-size: 15px;
+      line-height: 1.7;
+      margin: 0;
+    }
+
+    /* Decorative elements inside cards */
+    .tech-stack {
+      display: flex;
+      gap: 12px;
+      margin-top: auto;
+      padding-top: 32px;
+    }
+    .tech-tag {
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+      font-size: 12px;
+      padding: 4px 12px;
+      border-radius: 100px;
+    }
+
+    /* Highlight Graphic Placeholder */
+    .bento-graphic {
+      position: absolute;
+      right: -20px;
+      bottom: -20px;
+      width: 200px;
+      height: 200px;
+      background: radial-gradient(circle, rgba(1,123,198,0.2) 0%, rgba(0,0,0,0) 70%);
+      border-radius: 50%;
+      opacity: 0.5;
+      transition: all 0.5s ease;
+    }
+    .bento-item:hover .bento-graphic {
+      transform: scale(1.2);
+      opacity: 0.8;
     }
   </style>
 </head>
@@ -60,33 +438,225 @@
   <header>
     <div class="container flex justify-between items-center">
       <div class="nav-brand">AI SPEECHMASTER PRO</div>
-      <div class="nav-links">
+      <div class="nav-links" id="nav-links-container">
         <a href="index.html">HOME</a>
-        <a href="#">ABOUT</a>
-        <a href="teacher.html">TEACHER DASHBOARD</a>
+        <a href="login.html" id="nav-login-btn">LOGIN</a>
       </div>
     </div>
   </header>
 
   <main>
     <div class="hero-section">
-      <h2>스피치의 모든 것,<br>AI로 완성하는 발표의 자신감</h2>
-      <p>초등 저학년 한글 유창성부터 고학년 심화 프레젠테이션까지.</p>
+      <div class="hero-content">
+        <div class="hero-badge">🚀 AI SpeechMaster Pro V1.0</div>
+        <h2>스피치의 모든 것,<br><span class="hero-highlight">AI로 완성하는 발표의 자신감</span></h2>
+        <p>초등 저학년 한글 유창성 기초부터 고학년 심화 프레젠테이션까지.<br>멀티모달 AI가 당신의 발표를 실시간으로 분석하고 코칭합니다.</p>
+      </div>
+      <div class="scroll-indicator">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+        SCROLL DOWN
+      </div>
     </div>
 
     <div class="mode-cards">
       <a href="low-grade.html" class="mode-card">
-        <div class="icon-placeholder">👶</div>
+        <div class="card-image-wrapper">
+          <img src="mode_low_grade.png" alt="저학년 모드 일러스트">
+        </div>
         <h3>저학년 모드</h3>
         <p>AI 스피치버디와 함께<br>정확하고 즐겁게 읽기 연습을 해요.</p>
       </a>
       <a href="high-grade.html" class="mode-card">
-        <div class="icon-placeholder">👧</div>
+        <div class="card-image-wrapper">
+          <img src="mode_high_grade.png" alt="고학년 모드 일러스트">
+        </div>
         <h3>고학년 모드</h3>
         <p>실시간 카메라 센서와 함께<br>발표 태도와 성량을 점검해보세요.</p>
       </a>
     </div>
+
+    <section class="premium-features">
+      <div class="features-header">
+        <div class="features-badge">State of the Art</div>
+        <h2>차원이 다른 에듀테크의 완성</h2>
+        <p>최신 비전 AI와 거대 언어 모델(LLM)이 결합된 압도적인 스피치 훈련 시스템.<br>학생들의 발표 능력을 실시간으로 분석하고 교사의 업무를 혁신적으로 줄여줍니다.</p>
+      </div>
+
+      <div class="features-split-layout">
+        <!-- Left: Interactive Bento Grid -->
+        <div class="bento-grid-left">
+          <!-- Large Card 1: CLOVA (Row 1, Col 1-2) -->
+          <div class="bento-item bento-large" data-id="f1">
+            <div class="bento-graphic"></div>
+            <div class="bento-icon" style="color: #03c75a;">🎙️</div>
+            <h3>NAVER CLOVA Speech</h3>
+            <p>압도적인 한국어 음성 인식률로 발음과 말하기 속도를 초정밀 분석합니다.</p>
+            <div class="tech-stack">
+              <span class="tech-tag" style="border: 1px solid rgba(3,199,90,0.5);">gRPC 스트리밍 (STT)</span>
+            </div>
+          </div>
+
+          <!-- Large Card 2: MediaPipe (Row 2, Col 1-2) -->
+          <div class="bento-item bento-large" data-id="f2">
+            <div class="bento-graphic" style="background: radial-gradient(circle, rgba(234,67,53,0.1) 0%, rgba(0,0,0,0) 70%);"></div>
+            <div class="bento-icon" style="color: #ea4335;">👁️</div>
+            <h3>Google MediaPipe Face Mesh</h3>
+            <p>초당 30프레임으로 478개의 얼굴 랜드마크를 실시간 추적하여 완벽한 시선과 자세 분석을 제공합니다.</p>
+            <div class="tech-stack">
+              <span class="tech-tag" style="border: 1px solid rgba(234,67,53,0.5);">Vision AI</span>
+            </div>
+          </div>
+
+          <!-- Normal Card (Row 3, Col 1) -->
+          <div class="bento-item" data-id="f3">
+            <div class="bento-icon" style="color: #4285f4;">✨</div>
+            <h3>Gemini 3.5 생기부</h3>
+            <p>LLM 프롬프팅으로 NEIS 관찰 문구 자동 생성.</p>
+          </div>
+
+          <!-- Normal Card (Row 3, Col 2) -->
+          <div class="bento-item" data-id="f4">
+            <div class="bento-icon" style="color: #fbbc05;">📊</div>
+            <h3>실시간 학급 대시보드</h3>
+            <p>딜레이 없는 데이터 동기화와 레이더 차트.</p>
+          </div>
+
+          <!-- Normal Card (Row 4, Col 1) -->
+          <div class="bento-item" data-id="f5">
+            <div class="bento-icon">🎯</div>
+            <h3>맞춤형 듀얼 모드</h3>
+            <p>연령별로 완벽히 분리된 맞춤형 UX 환경.</p>
+          </div>
+
+          <!-- Normal Card (Row 4, Col 2) -->
+          <div class="bento-item" data-id="f6">
+            <div class="bento-icon" style="color: #ffca28;">🔒</div>
+            <h3>Firebase 보안</h3>
+            <p>엔터프라이즈급 데이터 보호 시스템.</p>
+            <div class="tech-stack">
+              <span class="tech-tag">Firebase Auth</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Sticky Detail Panel -->
+        <div class="feature-detail-right" id="feature-detail-panel">
+          <div class="detail-content">
+            <div class="detail-icon-large">🖱️</div>
+            <div class="detail-title">기능을 자세히<br>알아보세요</div>
+            <div class="detail-desc">좌측의 기능 카드에 마우스를 올리면,<br>해당 기술의 상세한 작동 원리와 특장점이 이곳에 크게 표시됩니다.</div>
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
 
+  <script type="module">
+    import { auth, db } from './firebase.js';
+    import { onAuthStateChanged, signOut } from 'firebase/auth';
+    import { doc, getDoc } from 'firebase/firestore';
+
+    const navContainer = document.getElementById('nav-links-container');
+
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        // Logged in
+        let role = 'student';
+        try {
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+          if(userDoc.exists()) role = userDoc.data().role || 'student';
+        } catch (e) {
+          console.error(e);
+        }
+
+        const dashboardHtml = role === 'teacher' ? '<a href="teacher.html">DASHBOARD</a>' : '';
+        
+        navContainer.innerHTML = `
+          <a href="index.html">HOME</a>
+          ${dashboardHtml}
+          <a href="#" id="nav-logout-btn" style="cursor: pointer;">LOGOUT</a>
+        `;
+
+        document.getElementById('nav-logout-btn').addEventListener('click', (e) => {
+          e.preventDefault();
+          signOut(auth);
+        });
+
+      } else {
+        // Logged out
+        navContainer.innerHTML = `
+          <a href="index.html">HOME</a>
+          <a href="login.html">LOGIN</a>
+        `;
+      }
+    });
+
+    // Feature Hover Details Logic
+    const featureDetails = {
+      'f1': {
+        icon: '🎙️', title: 'NAVER CLOVA Speech',
+        desc: '국내 최고 수준의 한국어 음성 인식 API인 <strong>NAVER CLOVA Speech</strong>의 gRPC 스트리밍 기술을 적용했습니다. 학생이 발표를 하는 즉시 오디오 데이터를 청크(Chunk) 단위로 서버에 전송하여 실시간으로 텍스트로 변환(STT)합니다.',
+        highlight: '💡 이 텍스트 변환 데이터를 바탕으로 <strong>발음의 정확도</strong>와 <strong>분당 단어 수(WPM)</strong>를 계산하여, 말의 빠르기와 발음의 명확성을 객관적인 수치로 즉각 피드백합니다.'
+      },
+      'f2': {
+        icon: '👁️', title: 'Google MediaPipe Face Mesh',
+        desc: '구글의 최신 온디바이스 비전 AI인 <strong>MediaPipe</strong>를 적용했습니다. 학생의 웹캠 영상에서 초당 30프레임으로 무려 478개의 얼굴 랜드마크를 실시간으로 추적합니다.',
+        highlight: '💡 양쪽 눈동자의 좌표를 실시간으로 추적하여 <strong>정면 응시율(시선 처리)</strong>을 도출하고, 코와 얼굴 윤곽의 움직임을 수치화하여 <strong>자세의 흔들림</strong>을 정밀하게 측정합니다.'
+      },
+      'f3': {
+        icon: '✨', title: 'Gemini 3.5 생기부 자동화',
+        desc: 'Google의 초거대 언어 모델인 <strong>Gemini 3.5 Flash</strong>를 백엔드 서버에 연동했습니다. 학생의 5대 역량(발음, 속도, 성량, 시선, 자세) 스탯을 JSON 형태로 모델에 전송합니다.',
+        highlight: '💡 고도화된 프롬프트 엔지니어링을 통해, 실제 교사들이 생기부를 작성하는 말투와 형식에 꼭 맞춘 나이스(NEIS)용 관찰행동특성 문구를 1초 만에 자동 생성해 냅니다.'
+      },
+      'f4': {
+        icon: '📊', title: '실시간 학급 대시보드',
+        desc: 'Firebase Firestore의 <strong>onSnapshot</strong> 실시간 리스너를 활용했습니다. 교사가 화면을 새로고침할 필요 없이, 학급 내 어떤 학생이든 발표를 종료하는 그 순간 데이터가 푸시(Push)되어 차트가 갱신됩니다.',
+        highlight: '💡 Chart.js를 연동하여 학생의 5대 핵심 역량을 다이나믹한 레이더 그래프로 시각화하여, 한눈에 강점과 취약점을 파악할 수 있습니다.'
+      },
+      'f5': {
+        icon: '🎯', title: '맞춤형 듀얼 모드',
+        desc: 'SPA(Single Page Application) 라우팅 기법을 적용하여 저학년용 스피치 버디 화면과 고학년용 전문 스튜디오 화면 간의 매끄러운 전환을 구현했습니다.',
+        highlight: '💡 무거운 외부 프레임워크 없이 바닐라 JS 코어만으로 렌더링을 최적화하여, 저사양 태블릿에서도 버벅임 없이 완전히 독립된 두 가지 UX를 제공합니다.'
+      },
+      'f6': {
+        icon: '🔒', title: '클라우드 보안 아키텍처',
+        desc: 'Firebase Authentication을 통해 이메일 및 Google OAuth 계정으로 교사와 학생의 역할을 분리하는 세션 관리를 구현했습니다.',
+        highlight: '💡 Firestore Security Rules를 엄격하게 적용하여, 인증된 권한(Role)을 가진 교사만이 학생들의 민감한 평가 데이터에 접근할 수 있도록 엔터프라이즈급 보안을 보장합니다.'
+      }
+    };
+
+    const bentoItems = document.querySelectorAll('.bento-item');
+    const detailPanel = document.getElementById('feature-detail-panel');
+
+    bentoItems.forEach(item => {
+      item.addEventListener('mouseenter', () => {
+        const id = item.getAttribute('data-id');
+        if (!id || !featureDetails[id]) return;
+        
+        const data = featureDetails[id];
+        detailPanel.classList.add('active');
+        
+        // Remove existing content to trigger animation replay
+        detailPanel.innerHTML = '';
+        
+        // Force reflow
+        void detailPanel.offsetWidth;
+        
+        detailPanel.innerHTML = `
+          <div class="detail-content">
+            <div class="detail-icon-large">${data.icon}</div>
+            <div class="detail-title">${data.title}</div>
+            <div class="detail-desc">${data.desc}</div>
+            <div class="detail-highlight">${data.highlight}</div>
+          </div>
+        `;
+      });
+      
+      item.addEventListener('mouseleave', () => {
+        // Optional: Revert to default state, or keep the last hovered item visible.
+        // We will keep the last hovered item visible for better UX.
+      });
+    });
+  </script>
 </body>
 </html>

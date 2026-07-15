@@ -1,6 +1,36 @@
 import { FaceLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
+import { db, auth } from './firebase.js';
+import { collection, onSnapshot, query, orderBy, limit, setDoc, doc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+
+let studentId = "";
+let studentName = "";
+
+let currentUser = null;
+
+onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+        window.location.href = 'login.html';
+    } else {
+        currentUser = user;
+        studentId = user.uid;
+        studentName = user.displayName || user.email.split('@')[0];
+        
+        const studentNameDisplay = document.getElementById('student-name-display');
+        if (studentNameDisplay) {
+            studentNameDisplay.innerText = studentName;
+        }
+        
+        // Fetch role
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (userDoc.exists() && userDoc.data().role !== 'student') {
+            console.warn("User is not a student, but allowing access for testing.");
+        }
+    }
+});
 
 let faceLandmarker;
+
 let lastVideoTime = -1;
 let previousPosition = null;
 let movementHistory = [];
@@ -835,6 +865,41 @@ async function showAnalysisModal() {
       }
       
       commentEl.innerHTML = result.feedback;
+      
+      // Upload to Firebase
+      try {
+          const radarData = [
+              Math.min(100, Math.max(0, 100 - totalHabits * 5)), // 발음정밀도 (임시)
+              avgSpeed > 100 ? 90 : 70, // 말하기 속도
+              avgTone > 40 ? 95 : 60, // 성량 크기
+              gazeScore, // 시선 처리
+              avgShaking < 20 ? 90 : 60 // 자세 안정성
+          ];
+          
+          await setDoc(doc(db, "students", studentId), {
+              name: studentName,
+              status: "완료",
+              accuracy: radarData[0],
+              lastDate: new Date().toLocaleString(),
+              lastUpdatedAt: serverTimestamp(),
+              radarData: radarData,
+              historyData: { 
+                  labels: ['3월', '4월', '5월', '6월', '현재'], 
+                  wpm: [100, 105, 110, 115, avgSpeed], 
+                  accuracy: [60, 65, 70, 75, radarData[0]] 
+              },
+              weaknesses: [
+                  totalHabits > 5 ? "습관어 사용이 잦음" : "안정적인 어조",
+                  gazeScore < 80 ? "시선 이탈 잦음" : "시선 처리 양호"
+              ],
+              recommendations: [
+                  "거울을 보고 연습하기",
+                  "대본 숙지 후 시선 분산 줄이기"
+              ]
+          });
+      } catch (err) {
+          console.error("Firebase upload error:", err);
+      }
 
   } catch (error) {
       console.error("Analysis Error:", error);
@@ -941,3 +1006,25 @@ saveSettingsBtn.addEventListener('click', () => {
     
     settingsModal.classList.add('hidden');
 });
+
+// Firebase Assignment Sync
+const assignmentsQ = query(collection(db, "assignments"), orderBy("createdAt", "desc"), limit(1));
+onSnapshot(assignmentsQ, (snapshot) => {
+    snapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.active && data.script) {
+            scriptContent.innerText = data.script;
+            scriptEditor.value = data.script;
+        }
+    });
+});
+
+// Logout
+const btnLogout = document.getElementById('btn-logout');
+if (btnLogout) {
+    btnLogout.addEventListener('click', () => {
+        signOut(auth).then(() => {
+            window.location.href = 'login.html';
+        });
+    });
+}

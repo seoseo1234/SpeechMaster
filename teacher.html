@@ -74,12 +74,12 @@
             </div>
             <div class="flex items-center gap-2 bg-white text-black px-4 py-2 border-2 border-black">
                 <span class="material-symbols-outlined">person</span>
-                <span>박지훈 선생님</span>
+                <span id="teacher-name-display">선생님</span>
             </div>
-            <a href="index.html" class="brutalist-button bg-secondary text-black px-4 py-2 hover:bg-yellow-300 flex items-center gap-2">
+            <button id="btn-logout" class="brutalist-button bg-secondary text-black px-4 py-2 hover:bg-yellow-300 flex items-center gap-2">
                 <span class="material-symbols-outlined">logout</span>
-                나가기
-            </a>
+                로그아웃
+            </button>
         </div>
     </header>
 
@@ -275,6 +275,6 @@
     </div>
 
     <!-- Script -->
-    <script src="./teacher.js"></script>
+    <script type="module" src="./teacher.js"></script>
 </body>
 </html>
