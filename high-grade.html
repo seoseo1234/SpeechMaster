@@ -13,279 +13,250 @@
                 theme: {
                     extend: {
                         "colors": {
-                            "tertiary-fixed": "#96f996",
-                            "secondary": "#0c6780",
-                            "outline-variant": "#d0c6ab",
-                            "outline": "#7e775f",
-                            "inverse-primary": "#e9c400",
-                            "surface-variant": "#e4e3d7",
-                            "on-tertiary-fixed-variant": "#005316",
-                            "on-surface": "#1b1c15",
-                            "inverse-on-surface": "#f2f1e5",
-                            "primary-fixed-dim": "#e9c400",
-                            "on-primary-container": "#705e00",
-                            "background": "#fbfaee",
-                            "surface-container-highest": "#e4e3d7",
-                            "on-tertiary": "#ffffff",
-                            "on-error": "#ffffff",
-                            "on-error-container": "#93000a",
-                            "secondary-fixed": "#baeaff",
-                            "on-tertiary-fixed": "#002105",
-                            "tertiary": "#006e21",
-                            "primary": "#705d00",
-                            "on-secondary-container": "#09657f",
-                            "tertiary-container": "#8ef08e",
-                            "surface": "#fbfaee",
-                            "secondary-fixed-dim": "#89d0ed",
-                            "surface-tint": "#705d00",
-                            "on-surface-variant": "#4d4732",
-                            "error": "#ba1a1a",
-                            "surface-container": "#efeee3",
-                            "surface-bright": "#fbfaee",
-                            "error-container": "#ffdad6",
-                            "surface-container-low": "#f5f4e8",
-                            "on-secondary-fixed-variant": "#004d62",
-                            "on-background": "#1b1c15",
-                            "on-secondary": "#ffffff",
-                            "on-primary-fixed-variant": "#544600",
-                            "inverse-surface": "#303129",
-                            "on-tertiary-container": "#006f21",
-                            "surface-dim": "#dbdbcf",
-                            "primary-container": "#ffd700",
-                            "surface-container-lowest": "#ffffff",
-                            "surface-container-high": "#e9e9dd",
-                            "on-primary": "#ffffff",
-                            "secondary-container": "#9ae1ff",
-                            "primary-fixed": "#ffe16d",
-                            "on-primary-fixed": "#221b00",
-                            "tertiary-fixed-dim": "#7adc7d",
-                            "on-secondary-fixed": "#001f29"
-                        },
-                        "borderRadius": {
-                            "DEFAULT": "1rem",
-                            "lg": "2rem",
-                            "xl": "3rem",
-                            "full": "9999px"
-                        },
-                        "spacing": {
-                            "component-padding-md": "20px",
-                            "stack-gap": "24px",
-                            "component-padding-lg": "32px",
-                            "gutter": "16px",
-                            "component-padding-sm": "12px",
-                            "unit": "8px",
-                            "container-margin": "24px"
+                            "background": "#FFFFFF",
+                            "surface": "#FFFFFF",
+                            "primary": "#3B82F6", 
+                            "secondary": "#FDE047", 
+                            "tertiary": "#22C55E", 
+                            "error": "#EF4444",
+                            "on-surface": "#000000",
+                            "on-surface-variant": "#404040",
+                            "surface-variant": "#E5E7EB"
                         },
                         "fontFamily": {
-                            "headline-xl-mobile": ["Plus Jakarta Sans"],
                             "headline-md": ["Plus Jakarta Sans"],
-                            "label-lg": ["Quicksand"],
-                            "headline-xl": ["Plus Jakarta Sans"],
-                            "body-lg": ["Quicksand"],
                             "headline-lg": ["Plus Jakarta Sans"],
-                            "body-md": ["Quicksand"]
+                            "body-lg": ["Quicksand"],
+                            "body-md": ["Quicksand"],
+                            "label-lg": ["Quicksand"]
                         },
-                        "fontSize": {
-                            "headline-xl-mobile": ["32px", { "lineHeight": "38px", "fontWeight": "800" }],
-                            "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "700" }],
-                            "label-lg": ["16px", { "lineHeight": "24px", "fontWeight": "700" }],
-                            "headline-xl": ["40px", { "lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
-                            "body-lg": ["20px", { "lineHeight": "30px", "fontWeight": "500" }],
-                            "headline-lg": ["32px", { "lineHeight": "40px", "fontWeight": "700" }],
-                            "body-md": ["18px", { "lineHeight": "28px", "fontWeight": "500" }]
+                        "boxShadow": {
+                            "brutalist": "4px 4px 0px 0px #000000",
+                            "brutalist-lg": "8px 8px 0px 0px #000000",
+                            "brutalist-xl": "12px 12px 0px 0px #000000"
                         }
-                    },
-                },
+                    }
+                }
             }
-        } catch (_e) { }
+        } catch (_e) {}
     </script>
     <style>
-        .custom-scroll::-webkit-scrollbar { width: 6px; }
-        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #d0c6ab; border-radius: 10px; }
+        .custom-scroll::-webkit-scrollbar { width: 8px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #FFFFFF; border-left: 2px solid #000; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #000; }
+        .brutalist-button { transition: all 0.1s; border: 2px solid #000; box-shadow: 4px 4px 0px 0px #000; cursor: pointer; }
+        .brutalist-button:active { transform: translate(4px, 4px); box-shadow: 0px 0px 0px 0px #000; }
+        .brutalist-card { border: 4px solid #000; box-shadow: 8px 8px 0px 0px #000; }
         .volume-bar-pulse { transition: width 0.1s ease-out; }
-        .chunky-button { position: relative; transition: all 0.2s ease; border: 2px solid #004d62; }
-        .chunky-button:active { transform: translateY(4px); }
-        .chunky-button .shadow-layer { position: absolute; top: 4px; left: 0; width: 100%; height: 100%; z-index: -1; border-radius: inherit; }
     </style>
 </head>
-<body class="bg-surface-container-low font-body-md text-on-surface min-h-screen flex flex-col">
+<body class="bg-background font-body-md text-on-surface h-screen flex flex-col overflow-hidden">
     <!-- TopAppBar -->
-    <header class="bg-surface border-b-4 border-outline-variant z-50 flex justify-between items-center w-full px-container-margin py-unit h-20 sticky top-0 bg-surface-container-low">
-        <div class="flex items-center gap-4">
-            <a href="index.html" class="material-symbols-outlined text-primary text-headline-md hover:scale-110 transition-transform">home</a>
-            <h1 class="font-headline-md text-headline-md text-primary tracking-tight whitespace-nowrap">AI 스피치마스터 (고학년 발표 모드)</h1>
-        </div>
+    <header class="border-b-4 border-black bg-white z-50 flex justify-between items-center w-full px-8 h-24 sticky top-0 shrink-0">
         <div class="flex items-center gap-6">
-            <span class="material-symbols-outlined text-on-surface-variant hover:scale-105 transition-transform cursor-pointer">settings</span>
-            <div id="mic-status-icon" class="bg-surface-variant p-2 rounded-full flex items-center justify-center">
-                <span class="material-symbols-outlined text-on-surface-variant" style="font-variation-settings: 'FILL' 1;">mic_off</span>
+            <a href="index.html" class="bg-secondary border-4 border-black p-3 shadow-brutalist hover:bg-yellow-300 transition-colors block">
+                <span class="material-symbols-outlined text-black font-bold">home</span>
+            </a>
+            <h1 class="font-headline-lg text-3xl font-black uppercase tracking-tighter whitespace-nowrap">
+                AI 스피치마스터 <span class="text-primary">(고학년 발표 모드)</span>
+            </h1>
+        </div>
+        <div class="flex items-center gap-4">
+            <button class="brutalist-button bg-white p-3 flex items-center justify-center">
+                <span class="material-symbols-outlined text-black font-bold">settings</span>
+            </button>
+            <div id="mic-status-icon" class="brutalist-button bg-surface-variant p-3 flex items-center justify-center transition-colors">
+                <span class="material-symbols-outlined text-white font-bold" style="font-variation-settings: 'FILL' 1;">mic_off</span>
             </div>
         </div>
     </header>
 
-    <!-- Main Content Canvas -->
-    <!-- Main Content Canvas -->
-    <main class="flex-grow flex flex-col md:flex-row p-4 gap-4 h-[calc(100vh-200px)] overflow-hidden">
-        <!-- Left Side: Script Section -->
-        <section class="w-full md:w-[48%] flex flex-col gap-4 h-full">
-            <!-- Title Box -->
-            <div class="bg-white border-2 border-outline-variant rounded-lg p-3 shadow-[4px_4px_0px_#d0c6ab] flex items-center justify-between shrink-0">
-                <h2 class="font-headline-lg text-headline-lg text-secondary flex items-center gap-2"><span class="material-symbols-outlined">description</span> 나의 발표 대본</h2>
-                <button id="edit-script-btn" class="text-on-surface-variant font-label-lg bg-surface-container hover:bg-surface-dim transition-colors px-3 py-1 rounded-full flex items-center gap-1">
-                    <span class="material-symbols-outlined text-sm">edit</span>대본 수정
-                </button>
+    <div class="flex flex-grow overflow-hidden relative min-h-0">
+        <!-- Sidebar: Script & STT (Left) -->
+        <aside class="w-full md:w-[450px] lg:w-[500px] border-r-4 border-black bg-white flex flex-col overflow-hidden shrink-0 z-10">
+            <!-- Script Section -->
+            <div class="flex-grow flex flex-col p-6 overflow-hidden relative">
+                <div class="flex justify-between items-center mb-6 border-b-4 border-black pb-4 shrink-0">
+                    <h2 class="font-black text-xl flex items-center gap-2 uppercase">
+                        <span class="material-symbols-outlined font-bold text-primary">description</span> Script
+                    </h2>
+                    <button id="edit-script-btn" class="bg-secondary border-2 border-black px-3 py-1 font-black text-sm shadow-brutalist hover:bg-yellow-300 transition-colors flex items-center gap-1">
+                        <span class="material-symbols-outlined text-sm">edit</span> 수정
+                    </button>
+                </div>
+                
+                <div id="script-content" class="flex-grow overflow-y-auto custom-scroll pr-4 space-y-6 min-h-0">
+                    <p class="font-body-lg leading-relaxed text-xl font-bold opacity-100 border-l-8 border-primary pl-4">안녕하십니까? 오늘 저는 우리 학교 운동장 잔디 조성의 필요성에 대해 발표하겠습니다.</p>
+                </div>
+                <textarea id="script-editor" class="hidden absolute top-20 left-6 right-6 bottom-6 border-4 border-black p-4 font-body-lg text-xl font-bold bg-[#f8f8f8] resize-none focus:outline-none focus:bg-white shadow-[inset_4px_4px_0px_rgba(0,0,0,0.1)] custom-scroll"></textarea>
             </div>
             
-            <!-- Script Content Box -->
-            <div class="bg-white border-2 border-outline-variant rounded-lg shadow-[4px_4px_0px_#d0c6ab] p-4 overflow-hidden flex flex-col flex-1 relative">
-                <div id="script-content" class="flex-grow overflow-y-auto custom-scroll pr-4 space-y-4">
-                    <!-- Script goes here, generated by JS -->
-                    <p class="font-body-lg leading-relaxed text-on-surface text-2xl opacity-40" style="border-left: 4px solid transparent; padding-left: 0px; transition: 0.4s;">
-                        안녕하십니까? 오늘 저는 우리 학교 운동장 잔디 조성의 필요성에 대해 발표하겠습니다.
-                    </p>
-                </div>
-                <textarea id="script-editor" class="hidden absolute inset-0 w-full h-full border-0 focus:ring-0 resize-none font-body-lg text-xl p-4 bg-white text-on-surface" placeholder="발표할 대본을 입력해주세요..."></textarea>
-            </div>
-
-            <!-- Real-time STT -->
-            <div class="flex flex-col gap-2 mt-2 flex-1 min-h-0">
-                <div class="bg-secondary-container/20 border-2 border-secondary/20 rounded-lg p-3 shadow-[4px_4px_0px_#89d0ed] flex items-center justify-between shrink-0">
-                    <h2 class="font-headline-md text-headline-md text-secondary flex items-center gap-2"><span class="material-symbols-outlined">record_voice_over</span> 실시간 내 목소리</h2>
-                </div>
-                <div class="bg-white border-2 border-secondary/20 rounded-lg shadow-[4px_4px_0px_#89d0ed] p-4 flex flex-col flex-grow overflow-y-auto custom-scroll relative">
-                    <p id="stt-result" class="font-body-lg leading-relaxed text-on-surface text-xl transition-all">
-                        <span class="opacity-40 italic text-on-surface-variant">발표를 시작하면 여기에 음성이 실시간 텍스트로 나타납니다...</span>
+            <!-- Live STT Section -->
+            <div class="border-t-4 border-black p-6 bg-[#f8f8f8] h-[30%] min-h-[200px] flex flex-col shrink-0">
+                <h2 class="font-black text-lg flex items-center gap-2 mb-4 uppercase shrink-0">
+                    <span class="material-symbols-outlined font-bold text-primary">record_voice_over</span> LIVE STT RESULT
+                </h2>
+                <div class="bg-white border-2 border-black p-4 flex-grow overflow-y-auto custom-scroll shadow-brutalist min-h-0">
+                    <p id="stt-result" class="font-body-lg text-lg font-bold leading-relaxed text-black/70">
+                        <span class="opacity-40 italic">발표를 시작하면 여기에 음성이 실시간 텍스트로 나타납니다...</span>
                     </p>
                 </div>
             </div>
-        </section>
+        </aside>
 
-        <!-- Right Side: Camera & Sensors -->
-        <section class="flex-1 flex flex-col gap-4 h-full">
-            <!-- Camera Feed -->
-            <div class="bg-inverse-surface rounded-lg relative overflow-hidden flex-shrink-0 shadow-[4px_4px_0px_#303129] h-48 md:h-64 aspect-[4/3] mx-auto border-2 border-outline-variant">
-                <div class="absolute inset-0 z-0">
-                    <video id="camera-feed" class="w-full h-full object-cover transform scale-x-[-1]" autoplay muted playsinline></video>
-                    <!-- Fallback image shown if camera fails -->
-                    <img id="camera-fallback" alt="Camera disabled" class="hidden w-full h-full object-cover grayscale-[0.3]" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCGkW2Mwh8Mt4IagQzDhkooLJX00eIr7-JdzPANSe0SYa7PkAuRYrP6S3BvmFXM6nRY34M3mmNqnAD3KP5tsgq9SvTWsms3BG5x1U-wHqzudKHqAipU_znAoZC3wLmC4LOEEfldiSsQaVKXcQ8MgUGaijgRANc9yvpGbD-E6OYSU07owljq4RsnO-loPVDmCvAU7DbOoOcQAWiBUJWqZio4xQ7MCpZPt-8BZSf-ANTBuCsqp2cJU-8gZb8jIg9WSzpH678ngB7Cng">
-                </div>
+        <!-- Main Content: Camera & Analytics (Right) -->
+        <main class="flex-grow p-4 lg:p-6 bg-[#f0f0f0] flex flex-col overflow-y-auto custom-scroll">
+            <div class="flex flex-col gap-10 max-w-6xl mx-auto w-full flex-grow pb-8">
                 
-                <!-- Overlay: Posture/Gaze status -->
-                <div id="status-overlay" class="absolute top-2 left-2 z-20 flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-2 py-1 rounded-full border border-white/20">
-                    <div id="status-dot" class="w-2 h-2 bg-surface-variant rounded-full"></div>
-                    <span id="status-text" class="text-white text-xs font-bold">대기 중</span>
+                <!-- Video Feed -->
+                <div class="brutalist-card bg-black relative overflow-hidden w-full flex-grow min-h-[400px]">
+                    <video id="camera-feed" class="absolute inset-0 w-full h-full object-cover transform scale-x-[-1] opacity-90" autoplay muted playsinline></video>
+                    <img id="camera-fallback" alt="Camera disabled" class="absolute inset-0 w-full h-full object-cover" src="./fallback_student_new.png">
+                    
+                    <!-- HUD -->
+                    <div class="absolute top-6 left-6 z-20 flex flex-col gap-2">
+                        <div class="bg-secondary border-2 border-black px-4 py-1.5 font-black text-xs uppercase shadow-brutalist flex items-center gap-2">
+                            <div id="status-dot" class="w-3 h-3 bg-surface-variant border border-black rounded-none"></div>
+                            <span id="status-text">대기 중</span>
+                        </div>
+                    </div>
+                    <div class="absolute bottom-6 right-6 z-20">
+                        <div class="bg-primary text-white border-2 border-black px-4 py-1 font-black text-xs uppercase shadow-brutalist flex items-center gap-2">
+                            <span class="material-symbols-outlined text-sm">videocam</span> LIVE
+                        </div>
+                    </div>
+                    
+                    <!-- Face Tracking Canvas -->
+                    <canvas id="face-tracking-canvas" class="absolute inset-0 w-full h-full pointer-events-none z-10 transform scale-x-[-1]"></canvas>
+
+                    <!-- Left HUD: Graphs -->
+                    <div class="absolute left-6 top-1/2 -translate-y-1/2 flex flex-col gap-6 z-30 pointer-events-none opacity-90 transition-opacity duration-300">
+                        <div class="text-white drop-shadow-md">
+                            <div class="text-sm font-bold mb-1 uppercase tracking-wide">목소리 톤</div>
+                            <canvas id="tone-graph" width="140" height="50" class="border-b-2 border-white/30"></canvas>
+                        </div>
+                        <div class="text-white drop-shadow-md">
+                            <div class="text-sm font-bold mb-1 uppercase tracking-wide">속도</div>
+                            <canvas id="speed-graph" width="140" height="50" class="border-b-2 border-white/30"></canvas>
+                        </div>
+                        <div class="text-white drop-shadow-md">
+                            <div class="text-sm font-bold mb-1 uppercase tracking-wide">제스쳐</div>
+                            <canvas id="gesture-graph" width="140" height="50" class="border-b-2 border-white/30"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Right HUD: Feedback -->
+                    <div class="absolute right-6 top-1/2 -translate-y-1/2 z-30 pointer-events-none opacity-90 transition-opacity duration-300">
+                        <div class="bg-black/60 backdrop-blur-md border-2 border-white/20 p-5 shadow-[4px_4px_0px_rgba(0,0,0,0.5)] flex flex-col gap-4 text-white min-w-[180px]">
+                            <div class="flex items-center justify-between gap-4">
+                                <span class="text-base font-bold opacity-80">발표자세</span>
+                                <span id="feedback-posture" class="text-base font-black text-[#96f996]">자신감 있음</span>
+                            </div>
+                            <div class="flex items-center justify-between gap-4">
+                                <span class="text-base font-bold opacity-80">시선처리</span>
+                                <span id="feedback-gaze" class="text-base font-black text-[#96f996]">우수</span>
+                            </div>
+                            <div class="flex items-center justify-between gap-4">
+                                <span class="text-base font-bold opacity-80">발음</span>
+                                <span id="feedback-pronunciation" class="text-base font-black text-primary">명확</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                
-                <div class="absolute bottom-2 right-2 z-20">
-                    <div class="bg-secondary px-2 py-0.5 rounded text-white text-[10px] font-bold uppercase tracking-widest flex items-center gap-1">
-                        <span class="material-symbols-outlined text-[10px]">videocam</span> Live
+                </div>
+
+                <!-- Analytics Grid -->
+                <div class="grid grid-cols-12 gap-8 shrink-0">
+                    
+                    <!-- Volume Level -->
+                    <div class="col-span-12 lg:col-span-3 brutalist-card bg-surface flex flex-col gap-2 p-4">
+                        <div class="flex justify-between items-center">
+                            <span class="font-headline-lg font-black uppercase">음성 볼륨</span>
+                            <span id="volume-text" class="font-bold text-secondary">0 dB</span>
+                        </div>
+                        <div class="w-full h-4 border-2 border-black bg-white rounded-none overflow-hidden">
+                            <div id="volume-bar" class="h-full bg-secondary w-0 transition-all duration-75"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Habitual Words -->
+                    <div class="col-span-12 lg:col-span-5 brutalist-card bg-secondary flex flex-col gap-4 p-4">
+                        <div class="flex justify-between items-center">
+                            <span class="font-headline-lg font-black uppercase flex items-center gap-2">
+                                <span class="material-symbols-outlined font-black">hearing</span>
+                                습관어 체크
+                            </span>
+                            <button id="reset-habit-btn" class="text-xs font-black uppercase hover:text-primary transition-colors underline decoration-2 cursor-pointer">RESET</button>
+                        </div>
+                        <div class="flex gap-4">
+                            <div id="habit-item-uh" class="flex-1 bg-white border-2 border-black flex flex-col items-center p-2 transition-all">
+                                <span class="font-black text-sm text-surface-variant">어 / 아</span>
+                                <span id="count-uh" class="font-headline-lg font-black text-2xl">0회</span>
+                            </div>
+                            <div id="habit-item-um" class="flex-1 bg-white border-2 border-black flex flex-col items-center p-2 transition-all">
+                                <span class="font-black text-sm text-surface-variant">음 / 음마</span>
+                                <span id="count-um" class="font-headline-lg font-black text-2xl">0회</span>
+                            </div>
+                            <div id="habit-item-geu" class="flex-1 bg-white border-2 border-black flex flex-col items-center p-2 transition-all">
+                                <span class="font-black text-sm text-surface-variant">그 / 어그</span>
+                                <span id="count-geu" class="font-headline-lg font-black text-2xl">0회</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Pro Tip -->
+                    <div class="col-span-12 lg:col-span-4 brutalist-card bg-primary text-white flex flex-col p-4 relative overflow-hidden justify-center">
+                        <span class="font-black text-lg mb-2 z-10 flex items-center gap-2"><span class="material-symbols-outlined">lightbulb</span> PRO TIP</span>
+                        <p class="font-body-md z-10 leading-snug">천천히, 또렷하게 발음하세요. 습관어 대신 1초간 침묵하는 것이 더 프로페셔널해 보입니다.</p>
+                        <span class="material-symbols-outlined absolute -right-4 -bottom-4 text-8xl text-white opacity-20 transform -rotate-12">tips_and_updates</span>
                     </div>
                 </div>
             </div>
-
-            <!-- Volume Indicator -->
-            <div class="bg-white border-2 border-outline-variant rounded-lg p-3 shadow-[4px_4px_0px_#d0c6ab] shrink-0">
-                <div class="flex justify-between items-center mb-1">
-                    <h3 class="font-label-lg text-label-lg text-on-surface-variant flex items-center gap-2">
-                        <span class="material-symbols-outlined text-secondary text-base">volume_up</span> 음성 크기
-                    </h3>
-                    <span id="volume-text" class="text-secondary font-bold text-sm">0 dB</span>
-                </div>
-                <div class="h-3 bg-surface-container-highest rounded-full overflow-hidden border border-outline-variant">
-                    <div id="volume-bar" class="h-full bg-secondary volume-bar-pulse relative w-0">
-                        <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
-                    </div>
-                </div>
-                <div class="flex justify-between mt-1 text-[9px] text-outline font-bold uppercase">
-                    <span>작음</span>
-                    <span>적절함</span>
-                    <span>큼</span>
-                </div>
-            </div>
-
-            <!-- Habitual Word Warning -->
-            <div class="bg-white border-2 border-outline-variant rounded-lg p-3 flex-grow shadow-[4px_4px_0px_#d0c6ab] flex flex-col min-h-0">
-                <div class="flex justify-between items-center mb-2 shrink-0">
-                    <h3 class="font-label-lg text-label-lg text-on-surface-variant flex items-center gap-2">
-                        <span class="material-symbols-outlined text-error text-base">warning</span> 습관어 모니터링
-                    </h3>
-                    <button id="reset-habit-btn" class="text-xs font-bold text-outline hover:text-secondary underline">초기화</button>
-                </div>
-                
-                <div class="space-y-1.5 overflow-y-auto custom-scroll" id="habitual-word-list">
-                    <!-- Dynamic items will be placed here -->
-                    <div id="habit-item-uh" class="flex items-center justify-between px-3 py-1.5 bg-surface-container rounded-lg border border-outline-variant transition-colors">
-                        <div class="flex items-center gap-3">
-                            <span class="text-title-md font-bold text-on-surface-variant">'어..'</span>
-                        </div>
-                        <span id="count-uh" class="text-on-surface-variant font-extrabold text-xl">0회</span>
-                    </div>
-                    <div id="habit-item-um" class="flex items-center justify-between px-3 py-1.5 bg-surface-container rounded-lg border border-outline-variant transition-colors">
-                        <div class="flex items-center gap-3">
-                            <span class="text-title-md font-bold text-on-surface-variant">'음..'</span>
-                        </div>
-                        <span id="count-um" class="text-on-surface-variant font-extrabold text-xl">0회</span>
-                    </div>
-                    <div id="habit-item-geu" class="flex items-center justify-between px-3 py-1.5 bg-surface-container rounded-lg border border-outline-variant transition-colors">
-                        <div class="flex items-center gap-3">
-                            <span class="text-title-md font-bold text-on-surface-variant">'그..'</span>
-                        </div>
-                        <span id="count-geu" class="text-on-surface-variant font-extrabold text-xl">0회</span>
-                    </div>
-                </div>
-                
-                <div class="mt-auto pt-2 shrink-0">
-                    <p class="text-xs text-secondary bg-secondary-fixed/30 rounded-lg px-2 py-1.5 font-medium flex items-center gap-1">
-                        💡 침묵은 실수가 아닙니다. 멈추어 호흡하세요.
-                    </p>
-                </div>
-            </div>
-        </section>
-    </main>
+        </main>
+    </div>
 
     <!-- Bottom Action Bar -->
-    <footer class="bg-surface-container border-t-4 border-outline-variant w-full h-20 flex items-center justify-center px-4 z-50 sticky bottom-0">
-        <button id="start-presentation-btn" class="chunky-button bg-primary text-white px-8 py-3 rounded-lg font-headline-md text-headline-md w-full max-w-2xl hover:scale-[1.02] active:scale-[0.98] transition-transform flex items-center justify-center gap-4 group">
-            <span class="material-symbols-outlined group-hover:rotate-12 transition-transform">mic</span>
-            <span id="start-btn-text">발표 시작하기</span>
-            <div class="shadow-layer bg-primary-container"></div>
+    <footer class="border-t-4 border-black bg-white w-full h-24 flex items-center justify-center gap-6 px-8 z-50 shrink-0">
+        <button id="reset-history-btn" class="brutalist-button bg-surface-variant text-black px-8 py-4 flex items-center justify-center gap-2 group hover:bg-gray-300">
+            <span class="material-symbols-outlined font-black text-xl group-hover:-rotate-180 transition-transform duration-500">refresh</span>
+            <span class="font-headline-lg text-lg font-black uppercase">기록 초기화</span>
         </button>
-        <button id="end-presentation-btn" class="hidden chunky-button bg-secondary text-white px-8 py-3 rounded-lg font-headline-md text-headline-md w-full max-w-2xl hover:scale-[1.02] active:scale-[0.98] transition-transform flex items-center justify-center gap-4 group">
-            <span class="material-symbols-outlined group-hover:rotate-12 transition-transform">analytics</span>
-            <span>발표 종료 및 결과 확인</span>
-            <div class="shadow-layer bg-[#004d62]"></div>
+        <button id="start-presentation-btn" class="brutalist-button bg-primary text-white px-16 py-4 w-full max-w-2xl flex items-center justify-center gap-4 group">
+            <span class="material-symbols-outlined font-black text-3xl group-hover:rotate-12 transition-transform">mic</span>
+            <span id="start-btn-text" class="font-headline-lg text-2xl font-black uppercase">발표 시작하기</span>
+        </button>
+        <button id="end-presentation-btn" class="hidden brutalist-button bg-error text-white px-16 py-4 w-full max-w-2xl flex items-center justify-center gap-4 group">
+            <span class="material-symbols-outlined font-black text-3xl group-hover:-rotate-12 transition-transform">stop</span>
+            <span class="font-headline-lg text-2xl font-black uppercase">발표 종료 및 분석</span>
         </button>
     </footer>
 
     <!-- Result Modal (Hidden initially) -->
-    <div id="analysis-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl p-8 max-w-2xl w-full flex flex-col gap-6 shadow-2xl relative border-4 border-secondary overflow-hidden">
-            <!-- Confetti background -->
-            <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 pointer-events-none"></div>
+    <div id="analysis-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+        <div class="bg-white p-8 max-w-2xl w-full flex flex-col gap-8 brutalist-card relative overflow-hidden">
+            <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20 pointer-events-none"></div>
             
-            <h2 class="text-3xl font-headline-xl text-secondary text-center relative z-10">발표 분석 리포트</h2>
+            <h2 class="text-3xl font-headline-xl font-black text-center relative z-10 border-b-4 border-black pb-4 uppercase">발표 분석 리포트</h2>
             
-            <div class="bg-surface-container rounded-2xl p-6 relative z-10 space-y-4">
-                <div class="flex justify-between items-center border-b-2 border-outline-variant pb-4">
-                    <span class="text-xl font-bold text-on-surface">총 발표 시간</span>
-                    <span id="report-time" class="text-2xl font-bold text-primary">00:00</span>
+            <div class="bg-secondary p-6 relative z-10 space-y-6 border-4 border-black shadow-brutalist">
+                <div class="flex justify-between items-center border-b-4 border-black pb-4">
+                    <span class="text-xl font-black">총 발표 시간</span>
+                    <span id="report-time" class="text-3xl font-black">00:00</span>
                 </div>
-                <div class="flex justify-between items-center border-b-2 border-outline-variant pb-4">
-                    <span class="text-xl font-bold text-on-surface">발견된 습관어</span>
-                    <span id="report-habits" class="text-2xl font-bold text-error">총 0회</span>
+                <div class="flex justify-between items-center border-b-4 border-black pb-4">
+                    <span class="text-xl font-black">발견된 습관어</span>
+                    <span id="report-habits" class="text-3xl font-black text-error">총 0회</span>
                 </div>
-                <div class="flex flex-col gap-2">
-                    <span class="text-xl font-bold text-on-surface">종합 코멘트</span>
-                    <p id="report-comment" class="text-lg text-on-surface-variant leading-relaxed">
-                        훌륭한 발표였습니다! 불필요한 습관어를 줄이면 더 전문적으로 보일 거예요.
+                <div class="flex flex-col gap-3">
+                    <span class="text-xl font-black">종합 코멘트</span>
+                    <p id="report-comment" class="text-lg font-bold leading-relaxed bg-white border-2 border-black p-4 shadow-[4px_4px_0px_0px_#000]">
+                        분석 중...
                     </p>
                 </div>
             </div>
 
-            <button id="close-modal-btn" class="w-full chunky-button bg-primary text-white py-4 rounded-xl font-bold text-2xl relative z-10">
+            <button id="close-modal-btn" class="w-full brutalist-button bg-primary text-white py-4 font-black text-2xl uppercase relative z-10">
                 확인 및 종료
-                <div class="shadow-layer bg-[#544600]"></div>
             </button>
         </div>
     </div>

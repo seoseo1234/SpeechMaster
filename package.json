@@ -14,6 +14,7 @@
     "vite": "^5.0.0"
   },
   "dependencies": {
+    "@google/genai": "^2.11.0",
     "@google/generative-ai": "^0.24.1",
     "@grpc/grpc-js": "^1.14.4",
     "@grpc/proto-loader": "^0.8.1",
