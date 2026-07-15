@@ -1,113 +1,280 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html class="light" lang="ko" style="">
 <head>
-  <meta charset="UTF-8">
-  <title>교사용 대시보드 - AI SpeechMaster PRO</title>
-  <link rel="stylesheet" href="index.css">
-  <style>
-    .student-list {
-      background: var(--color-canvas);
-      border: 1px solid var(--color-hairline);
-      height: 600px;
-      overflow-y: auto;
-    }
-    .report-panel {
-      background: var(--color-canvas);
-      border: 1px solid var(--color-hairline);
-      padding: 32px;
-      height: 600px;
-      overflow-y: auto;
-      box-sizing: border-box;
-    }
-    .chart-placeholder {
-      background: var(--color-surface-alt);
-      border: 1px dashed var(--color-hairline-alt);
-      height: 200px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--color-muted);
-      font-size: 14px;
-    }
-    .ai-feedback-box {
-      background: var(--color-surface);
-      border-left: 4px solid var(--color-navy);
-      padding: 20px;
-      margin-top: 24px;
-    }
-  </style>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>교사용 관리 대시보드 - AI SpeechMaster</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Quicksand:wght@500;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=block" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script id="tailwind-config">
+        try {
+            tailwind.config = {
+                darkMode: "class",
+                theme: {
+                    extend: {
+                        "colors": {
+                            "background": "#FFFFFF",
+                            "surface": "#FFFFFF",
+                            "primary": "#3B82F6", 
+                            "secondary": "#FDE047", 
+                            "tertiary": "#22C55E", 
+                            "error": "#EF4444",
+                            "on-surface": "#000000",
+                            "on-surface-variant": "#404040",
+                            "surface-variant": "#E5E7EB"
+                        },
+                        "fontFamily": {
+                            "headline-md": ["Plus Jakarta Sans"],
+                            "headline-lg": ["Plus Jakarta Sans"],
+                            "body-lg": ["Quicksand"],
+                            "body-md": ["Quicksand"],
+                            "label-lg": ["Quicksand"]
+                        },
+                        "boxShadow": {
+                            "brutalist": "4px 4px 0px 0px #000000",
+                            "brutalist-lg": "8px 8px 0px 0px #000000",
+                            "brutalist-xl": "12px 12px 0px 0px #000000"
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    </script>
+    <link rel="stylesheet" href="index.css">
+    <style>
+        body { font-family: 'Quicksand', sans-serif; background-color: #f3f4f6; }
+        h1, h2, h3, h4, h5, h6, .font-headline { font-family: 'Plus Jakarta Sans', sans-serif; }
+        
+        .brutalist-card { border: 4px solid black; box-shadow: 4px 4px 0px 0px #000000; }
+        .brutalist-button { border: 4px solid black; box-shadow: 4px 4px 0px 0px #000000; transition: all 0.1s ease; }
+        .brutalist-button:active { transform: translate(4px, 4px); box-shadow: 0px 0px 0px 0px #000000; }
+        
+        /* Custom scrollbar for student list */
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #E5E7EB; border-left: 2px solid black; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #000; }
+    </style>
 </head>
-<body class="theme-high-grade">
+<body class="text-on-surface h-screen flex flex-col overflow-hidden">
 
-  <header>
-    <div class="container flex justify-between items-center">
-      <div class="nav-brand">
-        🪄 AI SpeechMaster PRO [5학년 2반]
-      </div>
-      <div class="flex items-center gap-4">
-        <a href="index.html">🏠 HOME</a>
-        <span style="font-weight: 400; font-size: 14px; color: var(--color-hairline-alt);">[박지훈 교사 👤] (Firebase 🟢)</span>
-      </div>
-    </div>
-  </header>
-
-  <main class="container">
-    <div class="dashboard-grid">
-      
-      <!-- 사이드바: 학생 목록 -->
-      <div class="flex-col gap-4">
-        <div class="pill w-full" style="justify-content:space-between;">
-          <span>학년군 필터</span>
-          <span style="font-size:12px;">▼</span>
+    <!-- Header -->
+    <header class="bg-primary text-white border-b-4 border-black p-4 flex justify-between items-center z-10 relative">
+        <div class="flex items-center gap-4">
+            <span class="material-symbols-outlined text-4xl">dashboard</span>
+            <h1 class="text-2xl font-headline-lg font-black uppercase tracking-wider">AI SpeechMaster PRO</h1>
+            <span class="bg-black text-white px-3 py-1 font-bold text-sm border-2 border-white">5학년 2반</span>
         </div>
-        <div class="student-list">
-          <div style="padding: 16px; background: var(--color-surface); font-weight: bold; font-size: 14px; border-bottom: 1px solid var(--color-hairline);">
-            학생 목록 (24명)
-          </div>
-          <div class="list-item active">박지우 (선택됨)</div>
-          <div class="list-item">김민수</div>
-          <div class="list-item">이서연</div>
-          <div class="list-item">최현우</div>
-          <div class="list-item">정다은</div>
-        </div>
-      </div>
-
-      <!-- 메인 뷰: 리포트 -->
-      <div class="report-panel">
-        <div class="flex justify-between items-center" style="margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--color-hairline);">
-          <h2>박지우 학생 스피치 종합 진단 리포트</h2>
-          <span class="pill" style="padding: 6px 12px; font-size: 12px;">최근 진단: 방금 전</span>
-        </div>
-
-        <div class="flex gap-6">
-          <div class="w-full">
-            <h3 style="margin-bottom: 16px;">📊 5대 스피치 역량 프로필</h3>
-            <div class="chart-placeholder">
-              [방사형 차트 영역]<br>발음정밀도 / 속도 / 성량 / 시선 / 성량안정
+        <div class="flex items-center gap-6 font-bold">
+            <div class="flex items-center gap-2">
+                <div class="w-3 h-3 bg-green-400 rounded-full border-2 border-black animate-pulse"></div>
+                <span>DB Online</span>
             </div>
-          </div>
-          <div class="w-full">
-            <h3 style="margin-bottom: 16px;">📈 발표 시간별 데이터 추이</h3>
-            <div class="chart-placeholder">
-              [꺾은선 그래프 영역]<br>데시벨(dB) 및 시선 유지 비율(%)
+            <div class="flex items-center gap-2 bg-white text-black px-4 py-2 border-2 border-black">
+                <span class="material-symbols-outlined">person</span>
+                <span>박지훈 선생님</span>
             </div>
-          </div>
+            <a href="index.html" class="brutalist-button bg-secondary text-black px-4 py-2 hover:bg-yellow-300 flex items-center gap-2">
+                <span class="material-symbols-outlined">logout</span>
+                나가기
+            </a>
         </div>
+    </header>
 
-        <div class="ai-feedback-box">
-          <div class="flex justify-between items-center" style="margin-bottom: 12px;">
-            <h3 style="font-size: 16px;">🤖 AI 나이스(NEIS) 관찰평가 추천 문구</h3>
-            <button class="btn-solid" style="height: 32px; font-size: 12px; padding: 4px 12px;">📋 생기부 문구 복사</button>
-          </div>
-          <p style="font-size: 15px; color: var(--color-ink-body); background: var(--color-canvas); padding: 16px; border: 1px solid var(--color-hairline);">
-            자신의 주장을 논리적으로 전개하는 능력이 탁월하며 발표 성량이 매우 안정적임. 다만 긴장했을 때 '어..' 등의 간투사를 반복하는 습관이 있어, 발표 시 한 문장을 끝맺고 의도적으로 1초간 쉬어가는 호흡 조절 연습을 병행한다면 완벽한 전달력을 갖출 것으로 기대됨.
-          </p>
-        </div>
+    <!-- Main Content -->
+    <div class="flex flex-1 overflow-hidden">
+        
+        <!-- Sidebar -->
+        <aside class="w-80 bg-white border-r-4 border-black flex flex-col z-0 relative">
+            
+            <!-- Class Status -->
+            <div class="p-4 border-b-4 border-black bg-surface-variant">
+                <h2 class="font-black text-lg mb-3 flex items-center gap-2">
+                    <span class="material-symbols-outlined">bar_chart</span>
+                    학급 스피치 현황판
+                </h2>
+                <div class="grid grid-cols-2 gap-2 text-center">
+                    <div class="bg-white border-2 border-black p-2">
+                        <div class="text-xs font-bold text-gray-500">평균 정확도</div>
+                        <div class="text-xl font-black text-primary">87%</div>
+                    </div>
+                    <div class="bg-white border-2 border-black p-2">
+                        <div class="text-xs font-bold text-gray-500">오늘 발표 완료</div>
+                        <div class="text-xl font-black text-tertiary">14/24명</div>
+                    </div>
+                </div>
+                <button id="btn-assign-script" class="brutalist-button bg-tertiary text-white w-full py-3 mt-4 font-black flex justify-center items-center gap-2 hover:bg-green-600">
+                    <span class="material-symbols-outlined">assignment_add</span>
+                    과제/대본 배포
+                </button>
+            </div>
 
-      </div>
+            <!-- Student List -->
+            <div class="flex-1 flex flex-col overflow-hidden">
+                <div class="p-4 border-b-2 border-black bg-white flex justify-between items-center shadow-md z-10 relative">
+                    <h3 class="font-black">학생 목록 (24명)</h3>
+                    <span class="material-symbols-outlined cursor-pointer hover:text-primary">filter_list</span>
+                </div>
+                <ul id="student-list" class="flex-1 overflow-y-auto custom-scrollbar">
+                    <!-- Students will be injected here via JS -->
+                </ul>
+            </div>
+        </aside>
 
+        <!-- Main Dashboard Panel -->
+        <main class="flex-1 overflow-y-auto bg-gray-50 p-8 custom-scrollbar">
+            
+            <div id="dashboard-content" class="max-w-6xl mx-auto hidden">
+                
+                <!-- Selected Student Header -->
+                <div class="flex justify-between items-end mb-6 border-b-4 border-black pb-4">
+                    <div>
+                        <h2 class="text-4xl font-headline-lg font-black flex items-center gap-3">
+                            <span id="st-name" class="text-primary">박지우</span> 학생 스피치 리포트
+                        </h2>
+                        <p class="text-gray-600 font-bold mt-2">최근 진단: <span id="st-last-date">오늘 오전 10:45</span></p>
+                    </div>
+                    <button class="brutalist-button bg-white px-4 py-2 font-bold flex items-center gap-2 hover:bg-gray-100">
+                        <span class="material-symbols-outlined">history</span> 전체 히스토리
+                    </button>
+                </div>
+
+                <!-- Charts Row -->
+                <div class="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
+                    <!-- Radar Chart: 5대 역량 -->
+                    <div class="brutalist-card bg-white p-6 flex flex-col">
+                        <h3 class="text-xl font-black mb-4 flex items-center gap-2 border-b-2 border-black pb-2">
+                            <span class="material-symbols-outlined text-secondary">radar</span>
+                            5대 스피치 역량 프로필
+                        </h3>
+                        <div class="flex-1 relative min-h-[350px] flex items-center justify-center">
+                            <canvas id="radarChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Line Chart: Growth History -->
+                    <div class="brutalist-card bg-white p-6 flex flex-col">
+                        <h3 class="text-xl font-black mb-4 flex items-center gap-2 border-b-2 border-black pb-2">
+                            <span class="material-symbols-outlined text-tertiary">trending_up</span>
+                            성장 히스토리 (학기초~현재)
+                        </h3>
+                        <div class="flex-1 relative min-h-[350px] flex items-center justify-center">
+                            <canvas id="lineChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Weakness & AI Recommendations -->
+                <div class="brutalist-card bg-[#fffbeb] border-secondary p-6 mb-8">
+                    <h3 class="text-xl font-black mb-4 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-error">warning</span>
+                        맞춤형 취약점 분석 및 훈련 추천
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-white border-2 border-black p-4">
+                            <h4 class="font-bold text-error mb-2 border-b border-gray-300 pb-1">발견된 주요 취약점</h4>
+                            <ul id="st-weaknesses" class="list-disc list-inside font-medium space-y-2">
+                                <!-- JS injected -->
+                            </ul>
+                        </div>
+                        <div class="bg-white border-2 border-black p-4">
+                            <h4 class="font-bold text-primary mb-2 border-b border-gray-300 pb-1">AI 훈련 가이드</h4>
+                            <ul id="st-recommendations" class="list-disc list-inside font-medium space-y-2">
+                                <!-- JS injected -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- NEIS Builder -->
+                <div class="brutalist-card bg-[#f0f9ff] border-primary p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-black flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary">smart_toy</span>
+                            나이스(NEIS) 관찰평가 자동 생성 (Gemini)
+                        </h3>
+                        <button id="btn-generate-neis" class="brutalist-button bg-primary text-white px-4 py-2 font-black flex items-center gap-2 hover:bg-blue-600">
+                            <span class="material-symbols-outlined">magic_button</span> 생성하기
+                        </button>
+                    </div>
+                    <p class="text-sm font-bold text-gray-600 mb-4">누적 멀티모달 기록 데이터(성량, 속도, 시선 처리, 발음 데이터)를 분석하여 학교생활기록부용 서술형 문구를 작성합니다.</p>
+                    
+                    <div class="relative">
+                        <textarea id="neis-output" class="w-full h-32 p-4 border-2 border-black bg-white font-medium text-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary" placeholder="생성하기 버튼을 누르면 AI가 문구를 작성합니다..." readonly></textarea>
+                        
+                        <!-- Loading Overlay -->
+                        <div id="neis-loading" class="absolute inset-0 bg-white/80 backdrop-blur-sm hidden flex-col items-center justify-center border-2 border-black">
+                            <span class="material-symbols-outlined animate-spin text-4xl text-primary mb-2">sync</span>
+                            <span class="font-black text-primary animate-pulse">제미나이가 데이터를 분석하여 문구를 작성 중입니다...</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-end mt-4">
+                        <button id="btn-copy-neis" class="brutalist-button bg-black text-white px-6 py-2 font-bold flex items-center gap-2 hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                            <span class="material-symbols-outlined">content_copy</span> 복사하기
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+            
+            <!-- Empty State -->
+            <div id="empty-state" class="h-full flex flex-col items-center justify-center text-center text-gray-500">
+                <span class="material-symbols-outlined text-6xl mb-4 opacity-50">account_circle</span>
+                <h2 class="text-2xl font-black">학생을 선택해주세요</h2>
+                <p class="font-medium mt-2">좌측 목록에서 학생을 클릭하면 상세 리포트를 볼 수 있습니다.</p>
+            </div>
+
+        </main>
     </div>
-  </main>
 
+    <!-- Modals -->
+    <!-- Script Assignment Modal -->
+    <div id="modal-assign" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white brutalist-card max-w-2xl w-full p-8 flex flex-col gap-6 relative">
+            <div class="flex justify-between items-center border-b-4 border-black pb-4">
+                <h2 class="text-2xl font-black flex items-center gap-2">
+                    <span class="material-symbols-outlined">assignment_add</span>
+                    새 과제/대본 배포
+                </h2>
+                <button class="btn-close-modal p-2 hover:bg-gray-200 border-2 border-transparent hover:border-black rounded-none">
+                    <span class="material-symbols-outlined font-bold">close</span>
+                </button>
+            </div>
+            
+            <div class="flex flex-col gap-4">
+                <div>
+                    <label class="font-black block mb-2">대상 학생</label>
+                    <select class="w-full border-4 border-black p-3 font-bold bg-surface-variant focus:outline-none focus:bg-white">
+                        <option>5학년 2반 전체 (24명)</option>
+                        <option>개별 선택...</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="font-black block mb-2">과제 제목</label>
+                    <input type="text" placeholder="예: 나의 롤모델 소개하기" class="w-full border-4 border-black p-3 font-bold bg-surface-variant focus:outline-none focus:bg-white">
+                </div>
+                <div>
+                    <label class="font-black block mb-2">발표 대본 텍스트</label>
+                    <textarea rows="5" placeholder="학생들이 읽고 연습할 대본을 입력하세요..." class="w-full border-4 border-black p-3 font-medium bg-surface-variant focus:outline-none focus:bg-white resize-none"></textarea>
+                </div>
+                <div class="flex items-center gap-4">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" class="w-6 h-6 border-4 border-black text-primary focus:ring-0 rounded-none bg-surface-variant" checked>
+                        <span class="font-bold">저학년(음소 분석) 모드 활성화</span>
+                    </label>
+                </div>
+            </div>
+            
+            <button class="btn-close-modal brutalist-button bg-tertiary text-white py-4 font-black text-xl hover:bg-green-600 mt-2">
+                배포하기
+            </button>
+        </div>
+    </div>
+
+    <!-- Script -->
+    <script src="./teacher.js"></script>
 </body>
 </html>

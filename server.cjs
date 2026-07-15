@@ -77,6 +77,42 @@ app.post('/analyze-audio', upload.single('audio'), async (req, res) => {
     }
 });
 
+app.post('/generate-neis-comment', async (req, res) => {
+    try {
+        const { name, accuracy, weaknesses, radar } = req.body;
+        
+        const apiKey = process.env.VITE_GEMINI_API_KEY;
+        if (!apiKey) return res.status(500).json({ error: 'Gemini API key is not configured.' });
+        
+        const client = new GoogleGenAI({ apiKey: apiKey });
+        
+        const prompt = `당신은 초등학교 교사입니다. 학생의 발표 기록 데이터를 바탕으로 나이스(NEIS) 학교생활기록부 교과세특 또는 행동특성 및 종합의견에 들어갈 만한 "서술형 관찰평가 피드백 문구"를 작성해주세요.
+
+[학생 데이터]
+- 이름: ${name}
+- 평균 정확도: ${accuracy}%
+- 주요 취약점: ${weaknesses.join(', ')}
+- 5대 역량(100점 만점): 발음정밀도(${radar[0]}), 말하기 속도(${radar[1]}), 성량 크기(${radar[2]}), 시선 처리(${radar[3]}), 자세 안정성(${radar[4]})
+
+[작성 지침]
+1. 공손하고 전문적인 교사의 어투(평어체, ~함, ~임)로 작성해주세요.
+2. 장점(역량 점수가 높은 부분)을 먼저 칭찬하고, 단점(취약점)은 보완 방향성을 제시하는 긍정적인 방향으로 작성해주세요.
+3. 길이는 2~3문장, 150자 내외로 매우 간결하게 작성해주세요.
+4. 오직 작성된 생기부 문구 텍스트만 출력하세요. json 포맷을 쓰지 마세요.`;
+
+        const response = await client.models.generateContent({
+            model: "gemini-3.5-flash",
+            contents: prompt
+        });
+        
+        res.json({ comment: response.text.trim() });
+        
+    } catch (error) {
+        console.error("NEIS Gen Error:", error);
+        res.status(500).json({ error: '생기부 문구 생성 중 오류가 발생했습니다.', details: error.message });
+    }
+});
+
 // Load gRPC Proto
 const PROTO_PATH = path.join(__dirname, 'nest.proto');
 const packageDefinition = protoLoader.loadSync(PROTO_PATH, {

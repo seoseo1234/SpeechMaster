@@ -808,7 +808,12 @@ async function showAnalysisModal() {
       });
 
       if (!response.ok) {
-          throw new Error(`Server returned ${response.status}`);
+          let errorMsg = `Server returned ${response.status}`;
+          try {
+              const errorData = await response.json();
+              if (errorData.details) errorMsg += ` - ${errorData.details}`;
+          } catch(e) {}
+          throw new Error(errorMsg);
       }
 
       const result = await response.json();
