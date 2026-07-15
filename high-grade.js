@@ -59,6 +59,33 @@ const micStatusIcon = document.getElementById('mic-status-icon');
 const statusDot = document.getElementById('status-dot');
 const statusText = document.getElementById('status-text');
 
+// Settings Elements
+const settingsBtn = document.getElementById('settings-btn');
+const settingsModal = document.getElementById('settings-modal');
+const closeSettingsBtn = document.getElementById('close-settings-btn');
+const saveSettingsBtn = document.getElementById('save-settings-btn');
+const cameraSelect = document.getElementById('camera-select');
+const micSelect = document.getElementById('mic-select');
+const enableTimerToggle = document.getElementById('enable-timer-toggle');
+const targetTimeMin = document.getElementById('target-time-min');
+const targetTimeSec = document.getElementById('target-time-sec');
+const targetTimeInputs = document.getElementById('target-time-inputs');
+const hideHudToggle = document.getElementById('hide-hud-toggle');
+// HUD & Timer Elements
+const hudLeft = document.getElementById('hud-left');
+const hudRight = document.getElementById('hud-right');
+const faceTrackingCanvas = document.getElementById('face-tracking-canvas');
+const presentationTimer = document.getElementById('presentation-timer');
+const currentTimeDisplay = document.getElementById('current-time-display');
+const targetTimeDisplay = document.getElementById('target-time-display');
+const timerSeparator = document.getElementById('timer-separator');
+
+let selectedCameraId = '';
+let selectedMicId = '';
+let targetPresentationSeconds = 180;
+let hideHudActive = false;
+let presentationTimerInterval = null;
+
 // HUD Elements
 let toneGraphCtx, speedGraphCtx, gestureGraphCtx;
 let toneHistory = new Array(30).fill(0);
@@ -527,8 +554,14 @@ async function startPresentation() {
     startBtn.innerHTML = `<span class="material-symbols-outlined animate-spin" style="animation-duration: 2s;">sync</span> <span id="start-btn-text">연결 중...</span>`;
     startBtn.classList.add('opacity-70', 'pointer-events-none');
 
+    // Apply Settings
+    const constraints = {
+        video: selectedCameraId ? { deviceId: { exact: selectedCameraId } } : true,
+        audio: selectedMicId ? { deviceId: { exact: selectedMicId } } : true
+    };
+    
     // Start Audio/Video
-    mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
     
     // Start WebKit Speech Recognition
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -656,9 +689,22 @@ async function startPresentation() {
     movementHistory = [];
     if (faceTrackingAnimation) cancelAnimationFrame(faceTrackingAnimation);
     predictWebcam();
-    
     startTime = Date.now();
-
+    
+    // Start Timer
+    presentationTimer.classList.remove('hidden');
+    currentTimeDisplay.parentElement.classList.remove('text-error');
+    if (presentationTimerInterval) clearInterval(presentationTimerInterval);
+    presentationTimerInterval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const m = String(Math.floor(elapsed / 60)).padStart(2, '0');
+        const s = String(elapsed % 60).padStart(2, '0');
+        currentTimeDisplay.innerText = `${m}:${s}`;
+        
+        if (targetPresentationSeconds !== Infinity && elapsed > targetPresentationSeconds) {
+            currentTimeDisplay.parentElement.classList.add('text-error');
+        }
+    }, 1000);
   } catch (err) {
     console.error('시작 오류:', err);
     startBtn.innerHTML = originalStartText;
@@ -697,7 +743,12 @@ function endPresentation() {
   if (faceTrackingAnimation) {
     cancelAnimationFrame(faceTrackingAnimation);
   }
-
+  
+  if (presentationTimerInterval) {
+      clearInterval(presentationTimerInterval);
+      presentationTimerInterval = null;
+  }
+  presentationTimer.classList.add('hidden');
   startBtn.classList.remove('hidden');
   endBtn.classList.add('hidden');
   
@@ -786,3 +837,102 @@ async function showAnalysisModal() {
       commentEl.innerHTML = `<span class="text-error">오류 발생: 제미나이 분석에 실패했습니다. (${error.message})</span>`;
   }
 }
+
+// ==========================================
+// Settings Modal Logic
+// ==========================================
+
+async function loadDevices() {
+    try {
+        // Request permissions first to get device labels
+        await navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
+            stream.getTracks().forEach(t => t.stop());
+        }).catch(err => {
+            console.warn("Permission not granted yet or no devices: ", err);
+        });
+
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        
+        cameraSelect.innerHTML = '';
+        micSelect.innerHTML = '';
+
+        const videoDevices = devices.filter(d => d.kind === 'videoinput');
+        const audioDevices = devices.filter(d => d.kind === 'audioinput');
+
+        if (videoDevices.length === 0) cameraSelect.innerHTML = '<option value="">비디오 장치가 없습니다.</option>';
+        if (audioDevices.length === 0) micSelect.innerHTML = '<option value="">오디오 장치가 없습니다.</option>';
+
+        videoDevices.forEach((device, index) => {
+            const option = document.createElement('option');
+            option.value = device.deviceId;
+            option.text = device.label || `카메라 ${index + 1}`;
+            if (device.deviceId === selectedCameraId) option.selected = true;
+            cameraSelect.appendChild(option);
+        });
+
+        audioDevices.forEach((device, index) => {
+            const option = document.createElement('option');
+            option.value = device.deviceId;
+            option.text = device.label || `마이크 ${index + 1}`;
+            if (device.deviceId === selectedMicId) option.selected = true;
+            micSelect.appendChild(option);
+        });
+
+    } catch (err) {
+        console.error("Error enumerating devices: ", err);
+    }
+}
+
+settingsBtn.addEventListener('click', async () => {
+    await loadDevices();
+    settingsModal.classList.remove('hidden');
+});
+
+closeSettingsBtn.addEventListener('click', () => {
+    settingsModal.classList.add('hidden');
+});
+
+enableTimerToggle.addEventListener('change', (e) => {
+    if (e.target.checked) {
+        targetTimeInputs.classList.remove('opacity-50', 'pointer-events-none');
+    } else {
+        targetTimeInputs.classList.add('opacity-50', 'pointer-events-none');
+    }
+});
+
+saveSettingsBtn.addEventListener('click', () => {
+    selectedCameraId = cameraSelect.value;
+    selectedMicId = micSelect.value;
+    
+    if (enableTimerToggle.checked) {
+        const minutes = parseInt(targetTimeMin.value) || 0;
+        const seconds = parseInt(targetTimeSec.value) || 0;
+        targetPresentationSeconds = (minutes * 60) + seconds;
+        
+        const targetM = String(minutes).padStart(2, '0');
+        const targetS = String(seconds).padStart(2, '0');
+        targetTimeDisplay.innerText = `${targetM}:${targetS}`;
+        
+        targetTimeDisplay.classList.remove('hidden');
+        timerSeparator.classList.remove('hidden');
+    } else {
+        targetPresentationSeconds = Infinity;
+        targetTimeDisplay.classList.add('hidden');
+        timerSeparator.classList.add('hidden');
+    }
+    
+    hideHudActive = hideHudToggle.checked;
+    
+    // Apply HUD Toggle immediately
+    if (hideHudActive) {
+        hudLeft.classList.add('opacity-0');
+        hudRight.classList.add('opacity-0');
+        faceTrackingCanvas.classList.add('opacity-0');
+    } else {
+        hudLeft.classList.remove('opacity-0');
+        hudRight.classList.remove('opacity-0');
+        faceTrackingCanvas.classList.remove('opacity-0');
+    }
+    
+    settingsModal.classList.add('hidden');
+});

@@ -62,7 +62,7 @@
             </h1>
         </div>
         <div class="flex items-center gap-4">
-            <button class="brutalist-button bg-white p-3 flex items-center justify-center">
+            <button id="settings-btn" class="brutalist-button bg-white p-3 flex items-center justify-center">
                 <span class="material-symbols-outlined text-black font-bold">settings</span>
             </button>
             <div id="mic-status-icon" class="brutalist-button bg-surface-variant p-3 flex items-center justify-center transition-colors">
@@ -129,8 +129,15 @@
                     <!-- Face Tracking Canvas -->
                     <canvas id="face-tracking-canvas" class="absolute inset-0 w-full h-full pointer-events-none z-10 transform scale-x-[-1]"></canvas>
 
+                    <!-- Timer UI -->
+                    <div id="presentation-timer" class="absolute top-6 right-6 z-20 hidden">
+                        <div class="bg-black text-white border-2 border-white/50 px-4 py-2 font-black text-lg tracking-widest shadow-brutalist">
+                            <span id="current-time-display">00:00</span> <span id="timer-separator" class="text-white/50 text-sm">/</span> <span id="target-time-display" class="text-white/50">00:00</span>
+                        </div>
+                    </div>
+
                     <!-- Left HUD: Graphs -->
-                    <div class="absolute left-6 top-1/2 -translate-y-1/2 flex flex-col gap-6 z-30 pointer-events-none opacity-90 transition-opacity duration-300">
+                    <div id="hud-left" class="absolute left-6 top-1/2 -translate-y-1/2 flex flex-col gap-6 z-30 pointer-events-none opacity-90 transition-opacity duration-300">
                         <div class="text-white drop-shadow-md">
                             <div class="text-sm font-bold mb-1 uppercase tracking-wide">목소리 톤</div>
                             <canvas id="tone-graph" width="140" height="50" class="border-b-2 border-white/30"></canvas>
@@ -146,7 +153,7 @@
                     </div>
 
                     <!-- Right HUD: Feedback -->
-                    <div class="absolute right-6 top-1/2 -translate-y-1/2 z-30 pointer-events-none opacity-90 transition-opacity duration-300">
+                    <div id="hud-right" class="absolute right-6 top-1/2 -translate-y-1/2 z-30 pointer-events-none opacity-90 transition-opacity duration-300">
                         <div class="bg-black/60 backdrop-blur-md border-2 border-white/20 p-5 shadow-[4px_4px_0px_rgba(0,0,0,0.5)] flex flex-col gap-4 text-white min-w-[180px]">
                             <div class="flex items-center justify-between gap-4">
                                 <span class="text-base font-bold opacity-80">발표자세</span>
@@ -261,7 +268,71 @@
         </div>
     </div>
 
-    <!-- Inject logic -->
-    <script type="module" src="high-grade.js"></script>
+    <!-- Settings Modal (Hidden initially) -->
+    <div id="settings-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+        <div class="bg-white p-8 max-w-lg w-full flex flex-col gap-6 brutalist-card relative">
+            <div class="flex justify-between items-center border-b-4 border-black pb-4">
+                <h2 class="text-2xl font-headline-xl font-black uppercase flex items-center gap-2">
+                    <span class="material-symbols-outlined font-bold">settings</span> 환경 설정
+                </h2>
+                <button id="close-settings-btn" class="brutalist-button bg-surface-variant p-2 hover:bg-gray-300">
+                    <span class="material-symbols-outlined font-bold">close</span>
+                </button>
+            </div>
+            
+            <div class="flex flex-col gap-4">
+                <div class="flex flex-col gap-2">
+                    <label class="font-black text-lg">비디오 장치 (카메라)</label>
+                    <select id="camera-select" class="border-4 border-black p-3 font-body-lg text-lg bg-surface-variant focus:outline-none focus:bg-white shadow-brutalist">
+                        <option value="">카메라를 찾는 중...</option>
+                    </select>
+                </div>
+                
+                <div class="flex flex-col gap-2">
+                    <label class="font-black text-lg">오디오 장치 (마이크)</label>
+                    <select id="mic-select" class="border-4 border-black p-3 font-body-lg text-lg bg-surface-variant focus:outline-none focus:bg-white shadow-brutalist">
+                        <option value="">마이크를 찾는 중...</option>
+                    </select>
+                </div>
+                
+                <div class="flex flex-col gap-2">
+                    <div class="flex items-center justify-between">
+                        <label class="font-black text-lg cursor-pointer" for="enable-timer-toggle">목표 발표 시간 설정</label>
+                        <div class="relative inline-block w-14 align-middle select-none transition duration-200 ease-in">
+                            <input type="checkbox" name="timer-toggle" id="enable-timer-toggle" checked class="toggle-checkbox absolute block w-7 h-7 rounded-none bg-white border-4 border-black appearance-none cursor-pointer checked:right-0 right-7 transition-all checked:bg-primary z-10"/>
+                            <label for="enable-timer-toggle" class="toggle-label block overflow-hidden h-7 rounded-none bg-surface-variant border-4 border-black cursor-pointer"></label>
+                        </div>
+                    </div>
+                    
+                    <div id="target-time-inputs" class="flex items-center gap-2 mt-1">
+                        <div class="flex items-center gap-2">
+                            <input type="number" id="target-time-min" min="0" max="60" value="3" class="w-20 border-4 border-black p-2 font-body-lg text-lg bg-surface-variant focus:outline-none focus:bg-white shadow-brutalist text-center">
+                            <span class="font-bold text-lg">분</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="number" id="target-time-sec" min="0" max="59" value="0" class="w-20 border-4 border-black p-2 font-body-lg text-lg bg-surface-variant focus:outline-none focus:bg-white shadow-brutalist text-center">
+                            <span class="font-bold text-lg">초</span>
+                        </div>
+                    </div>
+                    <span class="text-sm font-bold text-gray-600">설정한 시간을 초과하면 타이머가 붉은색으로 변합니다.</span>
+                </div>
+                
+                <div class="flex items-center gap-4 mt-4 border-t-4 border-black pt-4">
+                    <label class="font-black text-lg flex-grow cursor-pointer" for="hide-hud-toggle">UI(오버레이) 숨기기</label>
+                    <div class="relative inline-block w-14 align-middle select-none transition duration-200 ease-in">
+                        <input type="checkbox" name="toggle" id="hide-hud-toggle" class="toggle-checkbox absolute block w-7 h-7 rounded-none bg-white border-4 border-black appearance-none cursor-pointer checked:right-0 right-7 transition-all checked:bg-primary z-10"/>
+                        <label for="hide-hud-toggle" class="toggle-label block overflow-hidden h-7 rounded-none bg-surface-variant border-4 border-black cursor-pointer"></label>
+                    </div>
+                </div>
+            </div>
+            
+            <button id="save-settings-btn" class="brutalist-button bg-primary text-white py-4 mt-4 text-xl font-black uppercase">
+                저장 및 적용
+            </button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module" src="./high-grade.js"></script>
 </body>
 </html>
