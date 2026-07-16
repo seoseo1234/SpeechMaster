@@ -56,6 +56,26 @@
         .custom-scrollbar::-webkit-scrollbar { width: 8px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #E5E7EB; border-left: 2px solid black; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #000; }
+        
+        /* Mobile Responsiveness */
+        #btn-back-to-list { display: none; }
+        @media (max-width: 768px) {
+            header { flex-direction: column; align-items: flex-start; gap: 16px; padding: 16px; height: auto; }
+            header > div { width: 100%; flex-wrap: wrap; }
+            #btn-logout { flex: 1; justify-content: center; margin-top: 8px; }
+            .flex-1.overflow-hidden { flex-direction: column; }
+            aside { width: 100% !important; border-right: none; border-bottom: 4px solid #000; flex: none; height: 100vh; }
+            main { display: none; width: 100%; padding: 16px !important; }
+            
+            body.show-dashboard aside { display: none !important; }
+            body.show-dashboard main { display: block !important; }
+            #btn-back-to-list { display: flex !important; margin-bottom: 16px; }
+            
+            .grid-cols-2 { grid-template-columns: 1fr; }
+            .xl\:grid-cols-2 { grid-template-columns: 1fr; }
+            .text-4xl { font-size: 1.5rem !important; line-height: 1.2; }
+            .flex.justify-between.items-end { flex-direction: column; align-items: flex-start; gap: 16px; }
+        }
     </style>
 </head>
 <body class="text-on-surface h-screen flex flex-col overflow-hidden">
@@ -64,8 +84,12 @@
     <header class="bg-primary text-white border-b-4 border-black p-4 flex justify-between items-center z-10 relative">
         <div class="flex items-center gap-4">
             <span class="material-symbols-outlined text-4xl">dashboard</span>
-            <h1 class="text-2xl font-headline-lg font-black uppercase tracking-wider">AI SpeechMaster PRO</h1>
-            <span class="bg-black text-white px-3 py-1 font-bold text-sm border-2 border-white">5학년 2반</span>
+            <a href="#" onclick="localStorage.removeItem('guestMode'); localStorage.removeItem('guestRole'); window.location.replace('index.html'); return false;" class="text-2xl font-headline-lg font-black uppercase tracking-wider hover:text-yellow-300 transition-colors" style="text-decoration: none;">AI SpeechMaster PRO</a>
+            
+            <div class="flex items-center gap-2 ml-4">
+                <span id="class-name-display" class="bg-black text-white px-3 py-1 font-bold text-sm border-2 border-white cursor-pointer hover:bg-gray-800" title="클릭하여 반 이름 변경">내 학급</span>
+                <span id="class-code-display" class="bg-white text-primary px-3 py-1 font-bold text-sm border-2 border-white" title="학생 가입용 코드">코드: </span>
+            </div>
         </div>
         <div class="flex items-center gap-6 font-bold">
             <div class="flex items-center gap-2">
@@ -129,14 +153,17 @@
             <div id="dashboard-content" class="max-w-6xl mx-auto hidden">
                 
                 <!-- Selected Student Header -->
-                <div class="flex justify-between items-end mb-6 border-b-4 border-black pb-4">
+                <button id="btn-back-to-list" class="brutalist-button bg-black text-white px-4 py-2 font-bold flex items-center gap-2 hover:bg-gray-800 w-fit">
+                    <span class="material-symbols-outlined">arrow_back</span> 학생 목록으로 돌아가기
+                </button>
+                <div class="flex justify-between items-end mb-6 border-b-4 border-black pb-4 mt-4">
                     <div>
                         <h2 class="text-4xl font-headline-lg font-black flex items-center gap-3">
                             <span id="st-name" class="text-primary">박지우</span> 학생 스피치 리포트
                         </h2>
                         <p class="text-gray-600 font-bold mt-2">최근 진단: <span id="st-last-date">오늘 오전 10:45</span></p>
                     </div>
-                    <button class="brutalist-button bg-white px-4 py-2 font-bold flex items-center gap-2 hover:bg-gray-100">
+                    <button onclick="alert('전체 히스토리 기능은 준비중입니다. (다음 업데이트 예정)')" class="brutalist-button bg-white px-4 py-2 font-bold flex items-center gap-2 hover:bg-gray-100">
                         <span class="material-symbols-outlined">history</span> 전체 히스토리
                     </button>
                 </div>
@@ -276,5 +303,6 @@
 
     <!-- Script -->
     <script type="module" src="./teacher.js"></script>
+    <script type="module" src="./footer.js"></script>
 </body>
 </html>

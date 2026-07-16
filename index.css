@@ -258,3 +258,28 @@ header {
   font-weight: 600;
   background: var(--color-surface);
 }
+
+/* Mobile Base Adjustments */
+@media (max-width: 768px) {
+  .nav-links {
+    gap: 12px;
+  }
+  .nav-links a {
+    font-size: 13px;
+  }
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
+  }
+  .high-grade-grid {
+    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
+  }
+  .container {
+    padding: 0 16px;
+  }
+  h2 { font-size: 24px; }
+  h3 { font-size: 18px; }
+}

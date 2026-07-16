@@ -1,32 +1,76 @@
 import { db, auth } from './firebase.js';
-import { collection, onSnapshot, addDoc, serverTimestamp, query, orderBy, doc, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, serverTimestamp, query, doc, getDoc, updateDoc, where } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 
 let currentUser = null;
+const isGuestMode = localStorage.getItem('guestMode') === 'true';
 
 // Auth Guard
-onAuthStateChanged(auth, async (user) => {
-    if (!user) {
-        window.location.href = 'login.html';
-    } else {
-        currentUser = user;
-        
-        // Fetch role
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-        if (userDoc.exists() && userDoc.data().role !== 'teacher') {
-            alert('접근 권한이 없습니다. (교사 전용)');
-            window.location.href = 'login.html';
-        }
-        
-        const teacherNameDisplay = document.getElementById('teacher-name-display');
-        if (teacherNameDisplay) {
-            teacherNameDisplay.innerText = user.displayName || user.email.split('@')[0] + ' 선생님';
-        }
-        
-        // Init dashboard
+if (isGuestMode) {
+    currentUser = { uid: 'guest', role: 'teacher', displayName: '둘러보기 선생님' };
+    const teacherNameDisplay = document.getElementById('teacher-name-display');
+    if (teacherNameDisplay) teacherNameDisplay.innerText = '둘러보기 선생님';
+    
+    // Slight delay to simulate loading
+    setTimeout(() => {
         initStudentList();
-    }
-});
+    }, 500);
+} else {
+    onAuthStateChanged(auth, async (user) => {
+        if (!user) {
+            window.location.replace('login.html');
+        } else {
+            currentUser = user;
+            
+            // Fetch role
+            const userDoc = await getDoc(doc(db, "users", user.uid));
+            if (userDoc.exists() && userDoc.data().role !== 'teacher') {
+                alert('접근 권한이 없습니다. (교사 전용)');
+                window.location.replace('login.html');
+            }
+            
+            // Get classCode and className
+            let teacherClassCode = "";
+            let teacherClassName = "내 학급";
+            if (userDoc.exists()) {
+                teacherClassCode = userDoc.data().classCode || "NONE";
+                teacherClassName = userDoc.data().className || "내 학급";
+                const classCodeDisplay = document.getElementById('class-code-display');
+                if (classCodeDisplay) {
+                    classCodeDisplay.innerText = `코드: ${teacherClassCode}`;
+                }
+                const classNameDisplay = document.getElementById('class-name-display');
+                if (classNameDisplay) {
+                    classNameDisplay.innerText = teacherClassName;
+                    
+                    // Add edit listener
+                    classNameDisplay.addEventListener('click', async () => {
+                        const newName = prompt('새로운 반 이름을 입력하세요:', classNameDisplay.innerText);
+                        if (newName !== null && newName.trim() !== '') {
+                            try {
+                                await updateDoc(doc(db, "users", user.uid), {
+                                    className: newName.trim()
+                                });
+                                classNameDisplay.innerText = newName.trim();
+                            } catch (e) {
+                                console.error("Error updating class name:", e);
+                                alert("반 이름 변경 중 오류가 발생했습니다.");
+                            }
+                        }
+                    });
+                }
+            }
+            
+            const teacherNameDisplay = document.getElementById('teacher-name-display');
+            if (teacherNameDisplay) {
+                teacherNameDisplay.innerText = user.displayName || user.email.split('@')[0] + ' 선생님';
+            }
+            
+            // Init dashboard
+            initStudentList(teacherClassCode);
+        }
+    });
+}
 
 
 let students = [];
@@ -47,14 +91,26 @@ const btnCopyNeis = document.getElementById('btn-copy-neis');
 const modalAssign = document.getElementById('modal-assign');
 const btnAssignScript = document.getElementById('btn-assign-script');
 const closeAssignBtns = document.querySelectorAll('.btn-close-modal');
+const btnBackToList = document.getElementById('btn-back-to-list');
+
+if (btnBackToList) {
+    btnBackToList.addEventListener('click', () => {
+        document.body.classList.remove('show-dashboard');
+    });
+}
 
 let radarChartInstance = null;
 let lineChartInstance = null;
 let currentStudent = null;
 
 // Initialize Student List from Firebase
-function initStudentList() {
-    const q = query(collection(db, "students"), orderBy("lastUpdatedAt", "desc"));
+function initStudentList(classCode = "GUEST") {
+    if (isGuestMode) {
+        loadMockStudents();
+        return;
+    }
+
+    const q = query(collection(db, "students"), where("classCode", "==", classCode));
     
     onSnapshot(q, (snapshot) => {
         students = [];
@@ -63,7 +119,16 @@ function initStudentList() {
         snapshot.forEach((doc) => {
             const st = { id: doc.id, ...doc.data() };
             students.push(st);
-            
+        });
+        
+        // Sort manually by lastUpdatedAt desc to avoid requiring composite indexes
+        students.sort((a, b) => {
+            const timeA = a.lastUpdatedAt ? a.lastUpdatedAt.toMillis() : 0;
+            const timeB = b.lastUpdatedAt ? b.lastUpdatedAt.toMillis() : 0;
+            return timeB - timeA;
+        });
+
+        students.forEach((st) => {
             const li = document.createElement('li');
             li.className = `p-4 border-b-2 border-gray-200 cursor-pointer hover:bg-gray-100 transition flex justify-between items-center`;
             
@@ -86,18 +151,92 @@ function initStudentList() {
                 });
                 li.classList.add('bg-yellow-100', 'border-l-8', 'border-secondary');
                 selectStudent(st);
+                document.body.classList.add('show-dashboard');
             });
             
             studentListEl.appendChild(li);
         });
         
-        // If currentStudent exists, refresh their data, otherwise show empty state
+        // If currentStudent exists, refresh their data, otherwise select the first student
         if (currentStudent) {
             const updated = students.find(s => s.id === currentStudent.id);
-            if (updated) selectStudent(updated);
+            if (updated) {
+                selectStudent(updated);
+            }
+        } else if (students.length > 0) {
+            // Auto-select first student and highlight its list item
+            const firstLi = studentListEl.firstElementChild;
+            if (firstLi) firstLi.classList.add('bg-yellow-100', 'border-l-8', 'border-secondary');
+            selectStudent(students[0]);
         }
     });
 }
+
+function loadMockStudents() {
+    const mockNames = ['김지훈', '박서연', '이도윤', '최유진', '정하준', '강민서', '조준우', '윤지아', '임서준', '한지우'];
+    const statuses = ['완료', '진행중', '대기'];
+    
+    students = mockNames.map((name, i) => {
+        const status = statuses[i % 3];
+        const accVal = status === '대기' ? 0 : Math.floor(Math.random() * 20) + 75; // 75~95
+        const speedVal = status === '대기' ? 0 : Math.floor(Math.random() * 20) + 75;
+        const volVal = status === '대기' ? 0 : Math.floor(Math.random() * 20) + 75;
+        const gazeVal = status === '대기' ? 0 : Math.floor(Math.random() * 20) + 75;
+        const postureVal = status === '대기' ? 0 : Math.floor(Math.random() * 20) + 75;
+        
+        return {
+            id: `mock_${i}`,
+            name: name,
+            status: status,
+            accuracy: accVal,
+            lastDate: status === '대기' ? '-' : '2026.07.16',
+            lastUpdatedAt: new Date().getTime() - Math.random() * 10000000,
+            radarData: [accVal, speedVal, volVal, gazeVal, postureVal],
+            historyData: {
+                labels: status === '대기' ? [] : ['3/4', '3/15', '4/2', '오늘'],
+                accuracy: status === '대기' ? [] : [accVal - 15, accVal - 10, accVal - 5, accVal]
+            },
+            weaknesses: status === '대기' ? [] : ['말하기 속도가 다소 빠름', '특정 자음(ㅅ, ㄹ) 발음 불명확'],
+            recommendations: status === '대기' ? [] : ['천천히 또박또박 읽는 연습', '거울을 보고 입모양을 크게 벌리기']
+        };
+    });
+
+    studentListEl.innerHTML = '';
+    students.sort((a, b) => b.lastUpdatedAt - a.lastUpdatedAt).forEach((st) => {
+        const li = document.createElement('li');
+        li.className = `p-4 border-b-2 border-gray-200 cursor-pointer hover:bg-gray-100 transition flex justify-between items-center`;
+        
+        let statusBadge = '';
+        if (st.status === '완료') statusBadge = '<span class="bg-primary text-white text-xs px-2 py-1 font-bold">완료</span>';
+        else if (st.status === '진행중') statusBadge = '<span class="bg-tertiary text-white text-xs px-2 py-1 font-bold">진행중</span>';
+        else statusBadge = '<span class="bg-surface-variant text-gray-500 border border-gray-300 text-xs px-2 py-1 font-bold">대기</span>';
+
+        li.innerHTML = `
+            <div class="flex flex-col gap-1">
+                <span class="font-bold text-lg">${st.name}</span>
+                <span class="text-xs text-gray-500 font-medium">정확도: ${st.accuracy}%</span>
+            </div>
+            ${statusBadge}
+        `;
+        
+        li.addEventListener('click', () => {
+            Array.from(studentListEl.children).forEach(child => {
+                child.classList.remove('bg-yellow-100', 'border-l-8', 'border-secondary');
+            });
+            li.classList.add('bg-yellow-100', 'border-l-8', 'border-secondary');
+            selectStudent(st);
+        });
+        
+        studentListEl.appendChild(li);
+    });
+
+    if (students.length > 0) {
+        const firstLi = studentListEl.firstElementChild;
+        if (firstLi) firstLi.classList.add('bg-yellow-100', 'border-l-8', 'border-secondary');
+        selectStudent(students[0]);
+    }
+}
+
 
 // Select Student & Update Dashboard
 function selectStudent(st) {
@@ -105,20 +244,23 @@ function selectStudent(st) {
     emptyState.classList.add('hidden');
     dashboardContent.classList.remove('hidden');
     
-    stName.innerText = st.name;
-    stLastDate.innerText = st.lastDate;
+    stName.innerText = st.name || '이름 없음';
+    stLastDate.innerText = st.lastDate || '기록 없음';
     
-    // Update Weaknesses
-    stWeaknesses.innerHTML = st.weaknesses.map(w => `<li>${w}</li>`).join('');
-    stRecommendations.innerHTML = st.recommendations.map(r => `<li>${r}</li>`).join('');
+    // Update Weaknesses safely
+    const wList = st.weaknesses && st.weaknesses.length > 0 ? st.weaknesses : ['분석 데이터가 부족합니다.'];
+    const rList = st.recommendations && st.recommendations.length > 0 ? st.recommendations : ['낭독/발표 연습을 진행해주세요.'];
+    
+    stWeaknesses.innerHTML = wList.map(w => `<li>${w}</li>`).join('');
+    stRecommendations.innerHTML = rList.map(r => `<li>${r}</li>`).join('');
     
     // Reset NEIS
     neisOutput.value = '';
     btnCopyNeis.disabled = true;
 
-    // Update Charts
-    updateRadarChart(st.radarData);
-    updateLineChart(st.historyData);
+    // Update Charts safely
+    updateRadarChart(st.radarData || [0, 0, 0, 0, 0]);
+    updateLineChart(st.historyData || { labels: [], accuracy: [] });
 }
 
 // Chart.js Default styling to match brutalism
@@ -324,8 +466,9 @@ closeAssignBtns.forEach(btn => {
 const btnLogout = document.getElementById('btn-logout');
 if (btnLogout) {
     btnLogout.addEventListener('click', () => {
+        localStorage.removeItem('guestMode');
         signOut(auth).then(() => {
-            window.location.href = 'login.html';
+            window.location.replace('login.html');
         });
     });
 }

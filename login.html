@@ -58,20 +58,37 @@
     <div class="brutalist-card w-full max-w-md p-8 relative">
         <h1 class="text-3xl font-black mb-6 text-center font-display uppercase tracking-tight">Login / Register</h1>
         
-        <!-- Role Tabs -->
-        <div class="flex gap-4 mb-8">
-            <button id="tab-student" class="flex-1 brutalist-button bg-secondary text-black font-bold py-3 text-lg border-b-8">👨‍🎓 학생</button>
-            <button id="tab-teacher" class="flex-1 brutalist-button bg-surface text-gray-500 font-bold py-3 text-lg border-b-4 opacity-70">👩‍🏫 교사</button>
+        <!-- Auth Mode Tabs (Login vs Register) -->
+        <div class="flex gap-2 mb-6 p-1 bg-surface-variant rounded-lg border-2 border-black">
+            <button id="tab-login" class="flex-1 font-bold py-2 text-lg rounded-md bg-white border-2 border-black shadow-brutalist-sm transition-all">로그인</button>
+            <button id="tab-register" class="flex-1 font-bold py-2 text-lg rounded-md text-gray-500 hover:text-black transition-all">회원가입</button>
         </div>
 
-        <p id="role-desc" class="text-center font-bold text-gray-600 mb-6">학생 계정으로 접속하여 스피치 연습을 시작합니다.</p>
+        <h2 id="form-title" class="text-2xl font-black mb-2 text-center uppercase tracking-tight">로그인</h2>
+        <p id="role-desc" class="text-center font-bold text-gray-600 mb-6">등록된 이메일과 비밀번호로 로그인하세요.</p>
 
         <!-- Form -->
         <form id="login-form" class="flex flex-col gap-4">
-            <div>
-                <label class="font-black block mb-2">이름 (학생/교사명)</label>
-                <input type="text" id="name-input" class="w-full brutalist-input p-3 font-bold text-lg" placeholder="이름을 입력하세요 (처음 가입시 필수)" required>
+            
+            <!-- Fields only for Register -->
+            <div id="register-fields" style="display: none;" class="flex flex-col gap-4 border-b-2 border-dashed border-gray-300 pb-4 mb-2">
+                <!-- Role Tabs for Register -->
+                <div class="flex gap-4">
+                    <button type="button" id="tab-student" class="flex-1 brutalist-button bg-secondary text-black font-bold py-2 text-lg border-b-8">👨‍🎓 학생</button>
+                    <button type="button" id="tab-teacher" class="flex-1 brutalist-button bg-surface text-gray-500 font-bold py-2 text-lg border-b-4 opacity-70">👩‍🏫 교사</button>
+                </div>
+                
+                <div>
+                    <label class="font-black block mb-2">이름</label>
+                    <input type="text" id="name-input" class="w-full brutalist-input p-3 font-bold text-lg" placeholder="이름을 입력하세요">
+                </div>
+                <div id="class-code-container">
+                    <label class="font-black block mb-2 text-primary">학급 코드 (필수)</label>
+                    <input type="text" id="class-code-input" class="w-full brutalist-input p-3 font-bold text-lg uppercase" placeholder="선생님이 알려주신 5자리 코드">
+                </div>
             </div>
+
+            <!-- Common Fields -->
             <div>
                 <label class="font-black block mb-2">이메일</label>
                 <input type="email" id="email-input" class="w-full brutalist-input p-3 font-bold text-lg" placeholder="example@school.com" required>
@@ -81,8 +98,14 @@
                 <input type="password" id="password-input" class="w-full brutalist-input p-3 font-bold text-lg" placeholder="••••••••" required>
             </div>
             
-            <button type="submit" id="btn-email-login" class="brutalist-button bg-black text-white font-black py-4 text-xl mt-4 uppercase">
-                이메일로 계속하기 (가입/로그인)
+            <!-- Field only for Register -->
+            <div id="password-confirm-container" style="display: none;">
+                <label class="font-black block mb-2">비밀번호 확인</label>
+                <input type="password" id="password-confirm-input" class="w-full brutalist-input p-3 font-bold text-lg" placeholder="••••••••">
+            </div>
+            
+            <button type="submit" id="btn-submit" class="brutalist-button bg-black text-white font-black py-4 text-xl mt-4 uppercase">
+                로그인
             </button>
         </form>
 
@@ -97,6 +120,7 @@
             Google 계정으로 로그인
         </button>
 
+
         <!-- Loading Overlay -->
         <div id="auth-loading" class="absolute inset-0 bg-white/90 backdrop-blur-sm hidden flex-col items-center justify-center z-10 border-4 border-black">
             <span class="material-symbols-outlined animate-spin text-6xl text-primary mb-4">sync</span>
@@ -106,5 +130,6 @@
   </main>
 
   <script type="module" src="./login.js"></script>
+  <script type="module" src="./footer.js"></script>
 </body>
 </html>

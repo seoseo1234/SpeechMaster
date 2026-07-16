@@ -192,12 +192,22 @@
             0% { background-position: 0% 50%; }
             100% { background-position: 200% 50%; }
         }
+        
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            header h1 { font-size: 1.1rem; }
+            .chunky-card { padding: 16px !important; }
+            #story-box { font-size: 1.5rem !important; line-height: 1.5; }
+            #session-stars span { font-size: 1.2rem; }
+            .pulse-mic { width: 80px; height: 80px; }
+            #mic-icon { font-size: 3rem; }
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center">
     <!-- TopAppBar -->
     <header class="bg-surface border-b-4 border-outline-variant flex justify-between items-center w-full px-container-margin py-unit h-20 sticky top-0 z-50">
-        <a href="index.html" class="flex items-center justify-center w-14 h-14 rounded-full bg-surface-container-high hover:scale-105 transition-transform active:translate-y-1">
+        <a href="#" onclick="window.location.replace('index.html'); return false;" class="flex items-center justify-center w-14 h-14 rounded-full bg-surface-container-high hover:scale-105 transition-transform active:translate-y-1">
             <span class="material-symbols-outlined text-primary text-3xl">home</span>
         </a>
         <h1 class="font-headline-md text-headline-md text-primary">AI 스피치버디 (저학년 모드)</h1>

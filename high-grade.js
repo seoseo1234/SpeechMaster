@@ -7,10 +7,19 @@ let studentId = "";
 let studentName = "";
 
 let currentUser = null;
+const isGuestMode = localStorage.getItem('guestMode') === 'true';
+let studentClassCode = "";
 
 onAuthStateChanged(auth, async (user) => {
-    if (!user) {
-        window.location.href = 'login.html';
+    if (!user && !isGuestMode) {
+        window.location.replace('login.html');
+    } else if (isGuestMode) {
+        currentUser = { uid: 'guest', role: 'student', displayName: '체험학생' };
+        studentId = 'guest';
+        studentName = '체험학생';
+        studentClassCode = "GUEST";
+        const studentNameDisplay = document.getElementById('student-name-display');
+        if (studentNameDisplay) studentNameDisplay.innerText = studentName;
     } else {
         currentUser = user;
         studentId = user.uid;
@@ -21,10 +30,13 @@ onAuthStateChanged(auth, async (user) => {
             studentNameDisplay.innerText = studentName;
         }
         
-        // Fetch role
+        // Fetch role and classCode
         const userDoc = await getDoc(doc(db, "users", user.uid));
-        if (userDoc.exists() && userDoc.data().role !== 'student') {
-            console.warn("User is not a student, but allowing access for testing.");
+        if (userDoc.exists()) {
+            studentClassCode = userDoc.data().classCode || "";
+            if (userDoc.data().role !== 'student') {
+                console.warn("User is not a student, but allowing access for testing.");
+            }
         }
     }
 });
@@ -876,27 +888,30 @@ async function showAnalysisModal() {
               avgShaking < 20 ? 90 : 60 // 자세 안정성
           ];
           
-          await setDoc(doc(db, "students", studentId), {
-              name: studentName,
-              status: "완료",
-              accuracy: radarData[0],
-              lastDate: new Date().toLocaleString(),
-              lastUpdatedAt: serverTimestamp(),
-              radarData: radarData,
-              historyData: { 
-                  labels: ['3월', '4월', '5월', '6월', '현재'], 
-                  wpm: [100, 105, 110, 115, avgSpeed], 
-                  accuracy: [60, 65, 70, 75, radarData[0]] 
-              },
-              weaknesses: [
-                  totalHabits > 5 ? "습관어 사용이 잦음" : "안정적인 어조",
-                  gazeScore < 80 ? "시선 이탈 잦음" : "시선 처리 양호"
-              ],
-              recommendations: [
-                  "거울을 보고 연습하기",
-                  "대본 숙지 후 시선 분산 줄이기"
-              ]
-          });
+          if (!isGuestMode) {
+              await setDoc(doc(db, "students", studentId), {
+                  name: studentName,
+                  classCode: studentClassCode,
+                  status: "완료",
+                  accuracy: radarData[0],
+                  lastDate: new Date().toLocaleString(),
+                  lastUpdatedAt: serverTimestamp(),
+                  radarData: radarData,
+                  historyData: { 
+                      labels: ['3월', '4월', '5월', '6월', '현재'], 
+                      wpm: [100, 105, 110, 115, avgSpeed], 
+                      accuracy: [60, 65, 70, 75, radarData[0]] 
+                  },
+                  weaknesses: [
+                      totalHabits > 5 ? "습관어 사용이 잦음" : "안정적인 어조",
+                      gazeScore < 80 ? "시선 이탈 잦음" : "시선 처리 양호"
+                  ],
+                  recommendations: [
+                      "거울을 보고 연습하기",
+                      "대본 숙지 후 시선 분산 줄이기"
+                  ]
+              });
+          }
       } catch (err) {
           console.error("Firebase upload error:", err);
       }
@@ -1021,10 +1036,11 @@ onSnapshot(assignmentsQ, (snapshot) => {
 
 // Logout
 const btnLogout = document.getElementById('btn-logout');
-if (btnLogout) {
+if(btnLogout) {
     btnLogout.addEventListener('click', () => {
+        localStorage.removeItem('guestMode');
         signOut(auth).then(() => {
-            window.location.href = 'login.html';
+            window.location.replace('login.html');
         });
     });
 }
