@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/clova/:match*",
+      "destination": "https://clovaspeech-gw.ncloud.com/:match*"
+    }
+  ]
+}
