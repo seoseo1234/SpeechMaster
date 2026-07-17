@@ -828,37 +828,61 @@ async function showAnalysisModal() {
   }
 
   try {
-      // Create audio blob
       const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-      const formData = new FormData();
       
       const avgTone = toneCount > 0 ? Math.round(totalTone / toneCount) : 0;
       const avgSpeed = speedCount > 0 ? Math.round(totalSpeed / speedCount) : 0;
       const avgShaking = shakingCount > 0 ? Math.round(totalShaking / shakingCount) : 0;
       const gazeScore = totalGazeFrames > 0 ? Math.round((1 - outOfGazeCount / totalGazeFrames) * 100) : 0;
       
-      formData.append('avgTone', avgTone);
-      formData.append('avgSpeed', avgSpeed);
-      formData.append('avgShaking', avgShaking);
-      formData.append('gazeScore', gazeScore);
-      formData.append('audio', audioBlob, 'recording.webm');
 
-      // Send to local server which then calls Gemini
-      const response = await fetch('http://localhost:3001/analyze-audio', {
+      const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      if (!geminiKey) throw new Error("Gemini API Key missing in .env");
+
+      const base64Audio = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result.split(',')[1]);
+          reader.readAsDataURL(audioBlob);
+      });
+
+      const prompt = "첨부된 오디오 파일은 학생의 발표 녹음입니다.\n" +
+      "다음은 발표 중에 수집된 실시간 트래킹 데이터입니다:\n" +
+      "- 평균 목소리 톤 (0~255 수치): " + avgTone + "\n" +
+      "- 평균 말하기 속도: " + avgSpeed + "\n" +
+      "- 자세 불안정성 (흔들림 점수, 낮을수록 좋음): " + avgShaking + "\n" +
+      "- 정면 주시(시선 처리) 비율 (%): " + gazeScore + "\n\n" +
+      "학생이 발표 중 '어...', '음...', '그...' 와 같은 무의미한 습관어를 얼마나 사용했는지 오디오에서 찾아내주세요. 아주 짧은 찰나의 '어'나 '음'도 모두 카운트해야 합니다.\n\n" +
+      "결과는 반드시 다음 JSON 포맷으로만 출력해주세요:\n" +
+      "{\n" +
+      '  "habitCounts": {\n' +
+      '    "uh": (어, 아 사용 횟수 정수형),\n' +
+      '    "um": (음, 음마 사용 횟수 정수형),\n' +
+      '    "geu": (그, 어그 사용 횟수 정수형)\n' +
+      "  },\n" +
+      '  "feedback": "(트래킹 데이터와 발표 내용, 습관어 사용을 모두 종합하여 목소리의 크기/톤, 속도, 발표자세, 시선처리 등에 대한 매우 구체적이고 종합적인 피드백 코멘트를 3~4문장으로 작성해주세요. 수집된 데이터를 직접 언급하며 분석적인 조언을 제공해야 합니다.)"\n' +
+      "}";
+
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${geminiKey}`, {
           method: 'POST',
-          body: formData
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+              contents: [{
+                  parts: [
+                      { text: prompt },
+                      { inlineData: { mimeType: "audio/webm", data: base64Audio } }
+                  ]
+              }]
+          })
       });
 
       if (!response.ok) {
-          let errorMsg = `Server returned ${response.status}`;
-          try {
-              const errorData = await response.json();
-              if (errorData.details) errorMsg += ` - ${errorData.details}`;
-          } catch(e) {}
-          throw new Error(errorMsg);
+          throw new Error(`Gemini API Error: ${response.status}`);
       }
 
-      const result = await response.json();
+      const data = await response.json();
+      let text = data.candidates[0].content.parts[0].text;
+      text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+      const result = JSON.parse(text);
       
       const counts = result.habitCounts || { uh: 0, um: 0, geu: 0 };
       const totalHabits = counts.uh + counts.um + counts.geu;

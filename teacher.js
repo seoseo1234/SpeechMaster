@@ -372,29 +372,38 @@ btnGenerateNeis.addEventListener('click', async () => {
     btnGenerateNeis.disabled = true;
     
     try {
-        const response = await fetch('http://localhost:3001/generate-neis-comment', {
+        const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
+        if (!geminiKey) throw new Error("Gemini API Key missing in .env");
+
+        const safeWeaknesses = currentStudent.weaknesses || ["데이터 부족"];
+        const safeRadar = currentStudent.radarData || [0, 0, 0, 0, 0];
+
+        const prompt = "당신은 초등학교 교사입니다. 학생의 발표 기록 데이터를 바탕으로 나이스(NEIS) 학교생활기록부 교과세특 또는 행동특성 및 종합의견에 들어갈 만한 \"서술형 관찰평가 피드백 문구\"를 작성해주세요.\n\n" +
+        "[학생 데이터]\n" +
+        "- 이름: " + (currentStudent.name || '학생') + "\n" +
+        "- 평균 정확도: " + (currentStudent.accuracy || 0) + "%\n" +
+        "- 주요 취약점: " + safeWeaknesses.join(', ') + "\n" +
+        "- 5대 역량(100점 만점): 발음정밀도(" + safeRadar[0] + "), 말하기 속도(" + safeRadar[1] + "), 성량 크기(" + safeRadar[2] + "), 시선 처리(" + safeRadar[3] + "), 자세 안정성(" + safeRadar[4] + ")\n\n" +
+        "[작성 지침]\n" +
+        "1. 공손하고 전문적인 교사의 어투(평어체, ~함, ~임)로 작성해주세요.\n" +
+        "2. 장점(역량 점수가 높은 부분)을 먼저 칭찬하고, 단점(취약점)은 보완 방향성을 제시하는 긍정적인 방향으로 작성해주세요.\n" +
+        "3. 길이는 2~3문장, 150자 내외로 매우 간결하게 작성해주세요.\n" +
+        "4. 오직 작성된 생기부 문구 텍스트만 출력하세요. json 포맷을 쓰지 마세요.";
+
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${geminiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                name: currentStudent.name,
-                accuracy: currentStudent.accuracy,
-                weaknesses: currentStudent.weaknesses,
-                radar: currentStudent.radarData
+                contents: [{ parts: [{ text: prompt }] }]
             })
         });
-        
+
         if (!response.ok) {
-            let errorMsg = `Server returned ${response.status}`;
-            try {
-                const errData = await response.json();
-                if (errData.details) errorMsg += ` - ${errData.details}`;
-                else if (errData.error) errorMsg += ` - ${errData.error}`;
-            } catch (e) {}
-            throw new Error(errorMsg);
+            throw new Error(`Gemini API Error: ${response.status}`);
         }
         
         const data = await response.json();
-        neisOutput.value = data.comment;
+        neisOutput.value = data.candidates[0].content.parts[0].text.trim();
         btnCopyNeis.disabled = false;
         
     } catch (error) {
