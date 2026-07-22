@@ -21,7 +21,7 @@ onAuthStateChanged(auth, async (user) => {
         const dashboardHtml = role === 'teacher' ? '<a href="teacher.html">DASHBOARD</a>' : '';
         
         navContainer.innerHTML = `
-            <a href="index.html">HOME</a>
+            <a href="index.html" onclick="localStorage.removeItem('guestMode'); localStorage.removeItem('guestRole');">HOME</a>
             <a href="about.html" class="active">ABOUT</a>
             ${dashboardHtml}
             <a href="#" id="nav-logout-btn" style="cursor: pointer;">LOGOUT</a>
@@ -30,14 +30,14 @@ onAuthStateChanged(auth, async (user) => {
         if (isGuestMode) {
             const dashboardHtml = guestRole === 'teacher' ? '<a href="teacher.html">DASHBOARD</a>' : '';
             navContainer.innerHTML = `
-                <a href="index.html">HOME</a>
+                <a href="index.html" onclick="localStorage.removeItem('guestMode'); localStorage.removeItem('guestRole');">HOME</a>
                 <a href="about.html" class="active">ABOUT</a>
                 ${dashboardHtml}
                 <a href="#" id="nav-logout-btn" style="cursor: pointer;">LOGOUT</a>
             `;
         } else {
             navContainer.innerHTML = `
-                <a href="index.html">HOME</a>
+                <a href="index.html" onclick="localStorage.removeItem('guestMode'); localStorage.removeItem('guestRole');">HOME</a>
                 <a href="about.html" class="active">ABOUT</a>
                 <a href="login.html">LOGIN</a>
             `;
