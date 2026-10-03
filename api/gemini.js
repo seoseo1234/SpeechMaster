@@ -1,5 +1,6 @@
 // 텍스트 기반 Gemini 작업. 프롬프트는 서버에서 조립해 임의 프롬프트 호출을 막는다.
 import { handler, readJsonBody, callGemini, sendJson, HttpError } from './_lib.js';
+import { SCORE_LABELS } from '../scoring.js';
 
 const clip = (value, max) => String(value ?? '').slice(0, max);
 const toNum = (value) => {
@@ -21,8 +22,9 @@ const tasks = {
 
   // 교사: 나이스 관찰평가 문구 생성
   neis: ({ name, accuracy, weaknesses, radar }) => {
-    const r = Array.isArray(radar) ? radar.slice(0, 5).map(toNum) : [0, 0, 0, 0, 0];
-    while (r.length < 5) r.push(0);
+    const r = Array.isArray(radar) ? radar.slice(0, SCORE_LABELS.length).map(toNum) : [];
+    while (r.length < SCORE_LABELS.length) r.push(0);
+    const radarText = SCORE_LABELS.map((label, i) => `${label}(${r[i]})`).join(', ');
     const w = Array.isArray(weaknesses) && weaknesses.length
       ? weaknesses.slice(0, 10).map(x => clip(x, 100)).join(', ')
       : '데이터 부족';
@@ -31,7 +33,7 @@ const tasks = {
       `- 이름: ${clip(name, 30) || '학생'}\n` +
       `- 평균 정확도: ${toNum(accuracy)}%\n` +
       `- 주요 취약점: ${w}\n` +
-      `- 5대 역량(100점 만점): 발음정밀도(${r[0]}), 말하기 속도(${r[1]}), 성량 크기(${r[2]}), 시선 처리(${r[3]}), 자세 안정성(${r[4]})\n\n` +
+      `- 역량 점수(100점 만점, 0은 미측정): ${radarText}\n\n` +
       '[작성 지침]\n' +
       '1. 공손하고 전문적인 교사의 어투(평어체, ~함, ~임)로 작성해주세요.\n' +
       '2. 장점(역량 점수가 높은 부분)을 먼저 칭찬하고, 단점(취약점)은 보완 방향성을 제시하는 긍정적인 방향으로 작성해주세요.\n' +

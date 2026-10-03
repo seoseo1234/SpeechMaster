@@ -245,7 +245,7 @@ function loadMockStudents() {
         if (status === '대기') {
             return { id: `mock_${i}`, name, status, lastDate: '-', lastUpdatedAt: 0, mockSessions: [] };
         }
-        const scores = { pronunciation: rand(), speed: rand(), volume: rand(), gaze: rand(), posture: rand() };
+        const scores = { pronunciation: rand(), speed: rand(), volume: rand(), gaze: rand(), posture: rand(), gesture: rand() };
         const mockSessions = [3, 2, 1, 0].flatMap((weeksAgo, k) => {
             const createdAt = Date.now() - weeksAgo * 7 * day;
             return [
@@ -261,7 +261,7 @@ function loadMockStudents() {
             lastDate: new Date().toLocaleString(),
             lastUpdatedAt: Date.now() - Math.random() * 10000000,
             scores,
-            lastPresentation: { wpm: 116, habitCount: i % 2 ? 6 : 2 },
+            lastPresentation: { wpm: 116, habitCount: i % 2 ? 6 : 2, gestureRatio: 0.35, faceTouchRatio: 0, tiltRatio: 0 },
             lastReading: { wrongWords: ['읽었습니다', '닭'] },
             mockSessions
         };

@@ -1,10 +1,11 @@
-import { FaceLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
+import { FaceLandmarker, PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35";
 import { db, auth } from './firebase.js';
 import { collection, onSnapshot, query, where, setDoc, addDoc, doc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { analyzePresentation } from './apiClient.js';
-import { speedScore, volumeScore, ratioScore } from './scoring.js';
+import { speedScore, volumeScore, ratioScore, gestureScore } from './scoring.js';
 import { createLevelMeter, micName, MIC_HELP } from './micCheck.js';
+import { BodyTracker } from './bodyTracking.js';
 
 let studentId = "";
 let studentName = "";
@@ -48,12 +49,10 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 let faceLandmarker;
+let poseLandmarker = null; // 상반신 인식 (로드 실패 시 얼굴만으로 판단)
+const bodyTracker = new BodyTracker();
 
 let lastVideoTime = -1;
-let previousPosition = null;
-let movementHistory = [];
-const MOVEMENT_WINDOW_SIZE = 30;
-const SHAKING_THRESHOLD = 3.0;
 let faceTrackingAnimation = null;
 
 let mediaStream = null;
@@ -147,7 +146,6 @@ let lastSpeedCalcTime = 0;
 
 // Accumulators for Gemini Feedback
 let totalTone = 0, toneCount = 0;
-let totalShaking = 0, shakingCount = 0, shakingFrames = 0;
 let outOfGazeCount = 0, totalGazeFrames = 0;
 
 // Inline AudioWorklet for downsampling to 16kHz
@@ -191,7 +189,7 @@ const workletUrl = URL.createObjectURL(new Blob([workletCode], { type: 'applicat
 
 async function initializeFaceLandmarker() {
     const filesetResolver = await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm"
     );
     faceLandmarker = await FaceLandmarker.createFromOptions(filesetResolver, {
         baseOptions: {
@@ -203,6 +201,18 @@ async function initializeFaceLandmarker() {
         runningMode: "VIDEO",
         numFaces: 1
     });
+    try {
+        poseLandmarker = await PoseLandmarker.createFromOptions(filesetResolver, {
+            baseOptions: {
+                modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
+                delegate: "GPU"
+            },
+            runningMode: "VIDEO",
+            numPoses: 1
+        });
+    } catch (e) {
+        console.warn("Pose landmarker unavailable, using face-only posture:", e);
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -262,6 +272,7 @@ function resetAllHistory() {
     const feedbackGaze = document.getElementById('feedback-gaze');
     if (feedbackPosture) { feedbackPosture.innerText = '-'; feedbackPosture.className = 'text-base font-black text-white'; }
     if (feedbackGaze) { feedbackGaze.innerText = '-'; feedbackGaze.className = 'text-base font-black text-white'; }
+    setFeedback('feedback-gesture', '-', 'text-white');
     
     // 좌측 상단 상태 표시기 초기화
     statusText.innerText = '대기 중';
@@ -449,169 +460,162 @@ function updateScriptHighlight(recognizedText) {
   });
 }
 
+// 상반신 연결선 (어깨-팔꿈치-손목)
+const UPPER_BODY_LINKS = [[11, 12], [11, 13], [13, 15], [12, 14], [14, 16]];
+
+const GESTURE_LABELS = {
+    natural: ['자연스러움', 'text-[#96f996]'],
+    none: ['거의 없음', 'text-white/70'],
+    excessive: ['과함', 'text-error'],
+    'face-touch': ['얼굴 만짐', 'text-error'],
+    hidden: ['손 안 보임', 'text-white/50'],
+    unknown: ['상반신 필요', 'text-white/50']
+};
+
+function setFeedback(id, text, colorClass) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerText = text;
+    el.className = `text-base font-black ${colorClass}`;
+}
+
+// 고개 회전 각도로 정면 주시 여부 판별
+function isFacingFront(faceResult) {
+    const matrix = faceResult.facialTransformationMatrixes?.[0]?.data;
+    if (!matrix) return true;
+    const r00 = matrix[0], r10 = matrix[1], r20 = matrix[2];
+    const r11 = matrix[5], r21 = matrix[6];
+    const r12 = matrix[9], r22 = matrix[10];
+
+    const sy = Math.sqrt(r00 * r00 + r10 * r10);
+    const x = sy < 1e-6 ? Math.atan2(-r12, r11) : Math.atan2(r21, r22);
+    const y = Math.atan2(-r20, sy);
+    const pitch = x * 180 / Math.PI;
+    const yaw = y * 180 / Math.PI;
+
+    // 대본을 읽어야 하므로 시선(고개 회전) 판별 기준 완화 (좌우 상하 15도)
+    return Math.abs(yaw) < 15 && Math.abs(pitch) < 15;
+}
+
+// 얼굴 인식 브래킷 + 코 끝 십자선
+function drawFaceBracket(ctx, landmarks, width, height) {
+    let minX = 1, minY = 1, maxX = 0, maxY = 0;
+    for (const l of landmarks) {
+        if (l.x < minX) minX = l.x;
+        if (l.x > maxX) maxX = l.x;
+        if (l.y < minY) minY = l.y;
+        if (l.y > maxY) maxY = l.y;
+    }
+    const bx = minX * width, by = minY * height;
+    const bw = (maxX - minX) * width, bh = (maxY - minY) * height;
+    const c = 20;
+
+    ctx.strokeStyle = 'rgba(59, 130, 246, 0.8)'; // Electric blue
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(bx, by + c); ctx.lineTo(bx, by); ctx.lineTo(bx + c, by);
+    ctx.moveTo(bx + bw - c, by); ctx.lineTo(bx + bw, by); ctx.lineTo(bx + bw, by + c);
+    ctx.moveTo(bx, by + bh - c); ctx.lineTo(bx, by + bh); ctx.lineTo(bx + c, by + bh);
+    ctx.moveTo(bx + bw - c, by + bh); ctx.lineTo(bx + bw, by + bh); ctx.lineTo(bx + bw, by + bh - c);
+    ctx.stroke();
+
+    const nose = landmarks[1];
+    const nx = nose.x * width, ny = nose.y * height;
+    ctx.beginPath();
+    ctx.moveTo(nx - 5, ny); ctx.lineTo(nx + 5, ny);
+    ctx.moveTo(nx, ny - 5); ctx.lineTo(nx, ny + 5);
+    ctx.stroke();
+
+    return { nose: { x: nose.x, y: nose.y }, width: maxX - minX };
+}
+
+// 상반신 골격 (어깨선은 기울면 빨간색, 손목은 제스처 중이면 초록색)
+function drawUpperBody(ctx, pose, body, width, height) {
+    const pt = (i) => ({ x: pose[i].x * width, y: pose[i].y * height, ok: (pose[i].visibility ?? 1) > 0.5 });
+    ctx.lineWidth = 4;
+    UPPER_BODY_LINKS.forEach(([a, b], idx) => {
+        const p = pt(a), q = pt(b);
+        if (!p.ok || !q.ok) return;
+        ctx.strokeStyle = idx === 0
+            ? (body.stable ? 'rgba(150, 249, 150, 0.85)' : 'rgba(255, 90, 90, 0.9)')
+            : 'rgba(253, 224, 71, 0.7)';
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(q.x, q.y);
+        ctx.stroke();
+    });
+    [15, 16].forEach(i => {
+        const p = pt(i);
+        if (!p.ok) return;
+        ctx.fillStyle = body.gesture === 'natural' ? '#96f996' : body.gesture === 'none' ? '#FDE047' : '#ff5a5a';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+        ctx.fill();
+    });
+}
+
 function predictWebcam() {
     if (!isPresenting) return;
-    
-    if (faceLandmarker && cameraFeed.readyState >= 2) {
-        let startTimeMs = performance.now();
-        if (lastVideoTime !== cameraFeed.currentTime) {
-            lastVideoTime = cameraFeed.currentTime;
-            const results = faceLandmarker.detectForVideo(cameraFeed, startTimeMs);
-            
-            if (results.faceLandmarks && results.faceLandmarks.length > 0) {
-                // 1. 회전 각도 판별
-                let isLookingFront = true;
-                if (results.facialTransformationMatrixes && results.facialTransformationMatrixes.length > 0) {
-                    const matrix = results.facialTransformationMatrixes[0].data;
-                    const r00 = matrix[0], r10 = matrix[1], r20 = matrix[2];
-                    const r01 = matrix[4], r11 = matrix[5], r21 = matrix[6];
-                    const r02 = matrix[8], r12 = matrix[9], r22 = matrix[10];
 
-                    const sy = Math.sqrt(r00 * r00 + r10 * r10);
-                    const singular = sy < 1e-6;
-                    
-                    let x, y;
-                    if (!singular) {
-                        x = Math.atan2(r21, r22);
-                        y = Math.atan2(-r20, sy);
-                    } else {
-                        x = Math.atan2(-r12, r11);
-                        y = Math.atan2(-r20, sy);
-                    }
+    if (faceLandmarker && cameraFeed.readyState >= 2 && lastVideoTime !== cameraFeed.currentTime) {
+        lastVideoTime = cameraFeed.currentTime;
+        const now = performance.now();
+        const faceResult = faceLandmarker.detectForVideo(cameraFeed, now);
+        const poseResult = poseLandmarker ? poseLandmarker.detectForVideo(cameraFeed, now) : null;
+        const faceLm = faceResult.faceLandmarks?.[0] || null;
+        const poseLm = poseResult?.landmarks?.[0] || null;
 
-                    let pitch = x * 180 / Math.PI;
-                    let yaw = y * 180 / Math.PI;
-                    
-                    // 대본을 읽어야 하므로 시선(고개 회전) 판별 기준 완화 (좌우 상하 15도)
-                    isLookingFront = Math.abs(yaw) < 15 && Math.abs(pitch) < 15;
-                }
+        const faceCanvas = document.getElementById('face-tracking-canvas');
+        const width = cameraFeed.videoWidth, height = cameraFeed.videoHeight;
+        faceCanvas.width = width;
+        faceCanvas.height = height;
+        const ctx = faceCanvas.getContext('2d');
+        ctx.clearRect(0, 0, width, height);
 
-                // 2. 머리 흔들림 정량화
-                const noseTip = results.faceLandmarks[0][1];
-                const currentPosition = { x: noseTip.x, y: noseTip.y, z: noseTip.z };
-                
-                let movement = 0;
-                if (previousPosition) {
-                    const dx = currentPosition.x - previousPosition.x;
-                    const dy = currentPosition.y - previousPosition.y;
-                    const dz = currentPosition.z - previousPosition.z;
-                    movement = Math.sqrt(dx*dx + dy*dy + dz*dz);
-                }
-                previousPosition = currentPosition;
-
-                movementHistory.push(movement);
-                if (movementHistory.length > MOVEMENT_WINDOW_SIZE) {
-                    movementHistory.shift();
-                }
-                
-                // 얼굴 인식 브래킷 그리기 (캔버스)
-                const faceCanvas = document.getElementById('face-tracking-canvas');
-                if (faceCanvas) {
-                    faceCanvas.width = cameraFeed.videoWidth;
-                    faceCanvas.height = cameraFeed.videoHeight;
-                    const ctx = faceCanvas.getContext('2d');
-                    ctx.clearRect(0, 0, faceCanvas.width, faceCanvas.height);
-                    
-                    const landmarks = results.faceLandmarks[0];
-                    let minX = 1, minY = 1, maxX = 0, maxY = 0;
-                    for(let l of landmarks) {
-                        if(l.x < minX) minX = l.x;
-                        if(l.x > maxX) maxX = l.x;
-                        if(l.y < minY) minY = l.y;
-                        if(l.y > maxY) maxY = l.y;
-                    }
-                    const bx = minX * faceCanvas.width;
-                    const by = minY * faceCanvas.height;
-                    const bw = (maxX - minX) * faceCanvas.width;
-                    const bh = (maxY - minY) * faceCanvas.height;
-
-                    const cornerSize = 20;
-                    ctx.strokeStyle = 'rgba(59, 130, 246, 0.8)'; // Electric blue
-                    ctx.lineWidth = 3;
-                    ctx.beginPath();
-                    // Top-left
-                    ctx.moveTo(bx, by + cornerSize); ctx.lineTo(bx, by); ctx.lineTo(bx + cornerSize, by);
-                    // Top-right
-                    ctx.moveTo(bx + bw - cornerSize, by); ctx.lineTo(bx + bw, by); ctx.lineTo(bx + bw, by + cornerSize);
-                    // Bottom-left
-                    ctx.moveTo(bx, by + bh - cornerSize); ctx.lineTo(bx, by + bh); ctx.lineTo(bx + cornerSize, by + bh);
-                    // Bottom-right
-                    ctx.moveTo(bx + bw - cornerSize, by + bh); ctx.lineTo(bx + bw, by + bh); ctx.lineTo(bx + bw, by + bh - cornerSize);
-                    ctx.stroke();
-                    
-                    // 코 끝 타겟 십자선
-                    const nx = noseTip.x * faceCanvas.width;
-                    const ny = noseTip.y * faceCanvas.height;
-                    ctx.beginPath();
-                    ctx.moveTo(nx - 5, ny); ctx.lineTo(nx + 5, ny);
-                    ctx.moveTo(nx, ny - 5); ctx.lineTo(nx, ny + 5);
-                    ctx.stroke();
-                }
-
-                const totalMovement = movementHistory.reduce((acc, val) => acc + val, 0);
-                const shakingScore = totalMovement * 100;
-
-                let isShaking = shakingScore > SHAKING_THRESHOLD;
-                
-                // 상태 표시 및 우측 피드백 텍스트 독립적 업데이트
-                const feedbackPosture = document.getElementById('feedback-posture');
-                const feedbackGaze = document.getElementById('feedback-gaze');
-
-                // 발표 자세 피드백 (흔들림 기반)
-                if (feedbackPosture) {
-                    if (isShaking) {
-                        feedbackPosture.innerText = '불안정';
-                        feedbackPosture.className = 'text-base font-black text-error';
-                    } else {
-                        feedbackPosture.innerText = '자신감 있음';
-                        feedbackPosture.className = 'text-base font-black text-[#96f996]';
-                    }
-                }
-
-                // 시선 처리 피드백 (고개 각도 + 눈동자 기반)
-                if (feedbackGaze) {
-                    if (!isLookingFront) {
-                        feedbackGaze.innerText = '시선 이탈';
-                        feedbackGaze.className = 'text-base font-black text-error';
-                        outOfGazeCount++;
-                    } else {
-                        feedbackGaze.innerText = '우수';
-                        feedbackGaze.className = 'text-base font-black text-[#96f996]';
-                    }
-                }
-                
-                totalShaking += shakingScore;
-                shakingCount++;
-                if (isShaking) shakingFrames++;
+        if (!faceLm && !poseLm) {
+            statusText.innerText = '사람 인식 불가';
+            statusDot.className = 'w-3 h-3 bg-surface-variant border border-black rounded-none';
+        } else {
+            // 1. 시선 처리 (얼굴)
+            const isLookingFront = faceLm ? isFacingFront(faceResult) : true;
+            const faceInfo = faceLm ? drawFaceBracket(ctx, faceLm, width, height) : null;
+            if (faceLm) {
                 totalGazeFrames++;
-
-                // 좌측 상단 메인 상태 표시기 업데이트
-                if (isShaking) {
-                    statusText.innerText = '⚠️ 산만함 감지!';
-                    statusDot.className = 'w-3 h-3 bg-error border border-black rounded-none';
-                } else if (!isLookingFront) {
-                    statusText.innerText = '👀 시선 이탈';
-                    statusDot.className = 'w-3 h-3 bg-secondary border border-black rounded-none';
-                } else {
-                    statusText.innerText = '🟢 정면 주시 중';
-                    statusDot.className = 'w-3 h-3 bg-tertiary border border-black rounded-none animate-pulse';
-                }
-                
-                // 제스쳐 이력 업데이트
-                gestureHistory.push(shakingScore);
-                gestureHistory.shift();
-                drawHUDGraph(gestureGraphCtx, gestureHistory, '#3B82F6'); // Electric Blue
-                
-            } else {
-                statusText.innerText = '얼굴 인식 불가';
-                statusDot.className = 'w-3 h-3 bg-surface-variant border border-black rounded-none';
-                
-                const faceCanvas = document.getElementById('face-tracking-canvas');
-                if (faceCanvas) {
-                    const ctx = faceCanvas.getContext('2d');
-                    ctx.clearRect(0, 0, faceCanvas.width, faceCanvas.height);
-                }
+                if (!isLookingFront) outOfGazeCount++;
+                if (isLookingFront) setFeedback('feedback-gaze', '우수', 'text-[#96f996]');
+                else setFeedback('feedback-gaze', '시선 이탈', 'text-error');
             }
+
+            // 2. 자세(몸통) + 제스처(손) 분석
+            const body = bodyTracker.update({ pose: poseLm, face: faceInfo, aspect: width / height, t: now });
+            if (body.mode === 'body') drawUpperBody(ctx, poseLm, body, width, height);
+
+            if (body.mode !== 'none') {
+                if (body.stable) setFeedback('feedback-posture', body.mode === 'body' ? '안정적' : '안정적(얼굴 기준)', 'text-[#96f996]');
+                else setFeedback('feedback-posture', body.tilted ? '어깨 기울어짐' : '몸 흔들림', 'text-error');
+            }
+            const [gestureText, gestureColor] = GESTURE_LABELS[body.mode === 'body' ? body.gesture : 'unknown'];
+            setFeedback('feedback-gesture', gestureText, gestureColor);
+
+            // 좌측 상단 메인 상태 표시기 업데이트
+            if (body.mode !== 'none' && !body.stable) {
+                statusText.innerText = body.tilted ? '⚠️ 어깨 기울어짐!' : '⚠️ 몸 흔들림 감지!';
+                statusDot.className = 'w-3 h-3 bg-error border border-black rounded-none';
+            } else if (!isLookingFront) {
+                statusText.innerText = '👀 시선 이탈';
+                statusDot.className = 'w-3 h-3 bg-secondary border border-black rounded-none';
+            } else if (body.mode === 'face') {
+                statusText.innerText = '🟢 정면 주시 중 (상반신이 보이면 제스처도 분석해요)';
+                statusDot.className = 'w-3 h-3 bg-tertiary border border-black rounded-none animate-pulse';
+            } else {
+                statusText.innerText = '🟢 정면 주시 중';
+                statusDot.className = 'w-3 h-3 bg-tertiary border border-black rounded-none animate-pulse';
+            }
+
+            // 제스처 그래프: 손 움직임 속도
+            gestureHistory.push(body.handSpeed * 10);
+            gestureHistory.shift();
+            drawHUDGraph(gestureGraphCtx, gestureHistory, '#3B82F6'); // Electric Blue
         }
     }
     faceTrackingAnimation = window.requestAnimationFrame(predictWebcam);
@@ -761,7 +765,7 @@ async function startPresentation() {
     
     // Reset Accumulators
     totalTone = 0; toneCount = 0;
-    totalShaking = 0; shakingCount = 0; shakingFrames = 0;
+    bodyTracker.reset();
     outOfGazeCount = 0; totalGazeFrames = 0;
     
     // Reset Histories
@@ -787,8 +791,6 @@ async function startPresentation() {
     
     // 시작 시 변수 초기화
     lastVideoTime = -1;
-    previousPosition = null;
-    movementHistory = [];
     if (faceTrackingAnimation) cancelAnimationFrame(faceTrackingAnimation);
     predictWebcam();
     startTime = Date.now();
@@ -909,11 +911,16 @@ async function showAnalysisModal() {
       // 말하기 속도: 인식된 전체 어절 수 / 발표 시간(분)
       const wordCount = fullRecognizedText.trim() ? fullRecognizedText.trim().split(/\s+/).length : 0;
       const avgSpeed = elapsedSeconds > 0 ? Math.round(wordCount / (elapsedSeconds / 60)) : 0;
-      const avgShaking = shakingCount > 0 ? Math.round(totalShaking / shakingCount) : 0;
+      const body = bodyTracker.summary();
+      const postureScore = ratioScore(body.stableRatio * 100, 100);
+      const gestureNote = body.gestureRatio == null
+          ? '상반신/손이 화면에 충분히 보이지 않아 측정 안 됨'
+          : `손이 보이는 시간 중 ${Math.round(body.gestureRatio * 100)}% 동안 손동작 사용` +
+            (body.faceTouchRatio > 0.1 ? `, 얼굴 만지기 ${Math.round(body.faceTouchRatio * 100)}%` : '');
       const gazeScore = totalGazeFrames > 0 ? Math.round((1 - outOfGazeCount / totalGazeFrames) * 100) : 0;
       
 
-      const result = await analyzePresentation(audioBlob, { avgTone, avgSpeed, avgShaking, gazeScore });
+      const result = await analyzePresentation(audioBlob, { avgTone, avgSpeed, postureScore, gestureNote, gazeScore });
       
       const counts = result.habitCounts || { uh: 0, um: 0, geu: 0 };
       const totalHabits = counts.uh + counts.um + counts.geu;
@@ -935,15 +942,18 @@ async function showAnalysisModal() {
       
       // Upload to Firebase (요약은 병합 저장, 회차 기록은 누적)
       try {
-          const scores = {
-              volume: volumeScore((avgTone / 255) * 100),
-              gaze: gazeScore,
-              posture: ratioScore(shakingCount - shakingFrames, shakingCount)
-          };
+          const scores = { volume: volumeScore((avgTone / 255) * 100) };
+          if (totalGazeFrames > 0) scores.gaze = gazeScore;
+          if (body.measuredFrames > 0) scores.posture = postureScore;
+          if (body.gestureRatio != null) scores.gesture = gestureScore(body.gestureRatio, body.faceTouchRatio);
           if (avgSpeed > 0) scores.speed = speedScore(avgSpeed);
           
           if (!isGuestMode) {
-              const presentation = { wpm: avgSpeed, habitCount: totalHabits, durationSec: elapsedSeconds };
+              const presentation = {
+                  wpm: avgSpeed, habitCount: totalHabits, durationSec: elapsedSeconds,
+                  upperBodyRatio: body.upperBodyRatio, tiltRatio: body.tiltRatio,
+                  gestureRatio: body.gestureRatio, faceTouchRatio: body.faceTouchRatio
+              };
               await setDoc(doc(db, "students", studentId), {
                   name: studentName,
                   classCode: studentClassCode,
