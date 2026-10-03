@@ -314,21 +314,66 @@ function drawHUDGraph(ctx, history, color) {
     ctx.shadowBlur = 0;
 }
 
+const MY_SCRIPT_KEY = 'speechmaster_my_script';
+const assignmentSelect = document.getElementById('assignment-select');
+let isEditingScript = false;
+let assignments = [];          // 학급 과제 목록 (최신순)
+let knownAssignmentIds = null; // 처음 불러온 과제 id (이후 추가된 과제에 🆕 표시)
+let defaultScript = '';
+
+function loadMyScript() {
+  try { return localStorage.getItem(MY_SCRIPT_KEY) || defaultScript; } catch { return defaultScript; }
+}
+
+function saveMyScript(text) {
+  try { localStorage.setItem(MY_SCRIPT_KEY, text); } catch {}
+}
+
+// 대본을 문단(<p>) 단위로 표시: 빈 줄로 나누고, 빈 줄이 없으면 줄바꿈 단위로 나눈다
+function renderScript(text) {
+  let paragraphs = text.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+  if (paragraphs.length <= 1) paragraphs = text.split('\n').map(p => p.trim()).filter(Boolean);
+
+  scriptEditor.value = text;
+  scriptContent.replaceChildren();
+  paragraphs.forEach((p, idx) => {
+    const pEl = document.createElement('p');
+    pEl.className = 'font-body-lg leading-relaxed text-on-surface text-2xl transition-all duration-500';
+    pEl.style.borderLeft = idx === 0 ? '8px solid #3B82F6' : '8px solid transparent';
+    pEl.style.paddingLeft = idx === 0 ? '16px' : '0px';
+    pEl.style.opacity = idx === 0 ? '1' : '0.2';
+    pEl.innerText = p;
+    scriptContent.appendChild(pEl);
+  });
+}
+
+function selectedAssignment() {
+  return assignments.find(a => a.id === assignmentSelect.value) || null;
+}
+
 function setupScriptEditor() {
-  let isEditing = false;
-  
-  const pTags = scriptContent.querySelectorAll('p');
-  let initialText = Array.from(pTags).map(p => p.innerText.trim()).join('\n\n');
-  scriptEditor.value = initialText;
+  defaultScript = Array.from(scriptContent.querySelectorAll('p')).map(p => p.innerText.trim()).join('\n\n');
+  renderScript(loadMyScript());
+
+  assignmentSelect.addEventListener('change', () => {
+    const assignment = selectedAssignment();
+    renderScript(assignment ? assignment.script : loadMyScript());
+    if (assignment) {
+      // 확인한 과제는 🆕 표시 해제
+      assignment.isNew = false;
+      renderAssignmentOptions();
+    }
+  });
 
   editScriptBtn.addEventListener('click', () => {
     if (isPresenting) {
       alert('발표 중에는 대본을 수정할 수 없습니다.');
       return;
     }
-    
-    isEditing = !isEditing;
-    if (isEditing) {
+
+    isEditingScript = !isEditingScript;
+    assignmentSelect.disabled = isEditingScript;
+    if (isEditingScript) {
       scriptContent.style.display = 'none';
       scriptEditor.classList.remove('hidden');
       editScriptBtn.innerHTML = `<span class="material-symbols-outlined text-sm">save</span>저장`;
@@ -340,27 +385,30 @@ function setupScriptEditor() {
       editScriptBtn.innerHTML = `<span class="material-symbols-outlined text-sm">edit</span>수정`;
       editScriptBtn.classList.replace('bg-primary', 'bg-secondary');
       editScriptBtn.classList.remove('text-white');
-      
+
       const text = scriptEditor.value;
-      const paragraphs = text.split('\n\n').filter(p => p.trim() !== '');
-      scriptContent.innerHTML = '';
-      paragraphs.forEach((p, idx) => {
-        const pEl = document.createElement('p');
-        pEl.className = 'font-body-lg leading-relaxed text-on-surface text-2xl transition-all duration-500';
-        pEl.style.borderLeft = '8px solid transparent';
-        pEl.style.paddingLeft = '0px';
-        pEl.style.opacity = idx === 0 ? '1' : '0.2';
-        if (idx === 0) {
-          pEl.style.borderLeft = '8px solid #3B82F6';
-          pEl.style.paddingLeft = '16px';
-        }
-        pEl.innerText = p.trim();
-        scriptContent.appendChild(pEl);
-      });
+      const assignment = selectedAssignment();
+      // 과제 대본을 고치면 원본은 그대로 두고 '직접 작성한 대본'으로 저장
+      if (!assignment || text.trim() !== assignment.script.trim()) {
+        saveMyScript(text);
+        assignmentSelect.value = '';
+      }
+      renderScript(text);
     }
   });
 }
 
+function renderAssignmentOptions() {
+  const current = assignmentSelect.value;
+  const options = [new Option('✏️ 직접 작성한 대본', '')];
+  assignments.forEach(a => {
+    const d = a.createdAt?.toDate?.();
+    const date = d ? ` (${d.getMonth() + 1}/${d.getDate()})` : '';
+    options.push(new Option(`${a.isNew ? '🆕 ' : '📌 '}${a.title || '제목 없는 과제'}${date}`, a.id));
+  });
+  assignmentSelect.replaceChildren(...options);
+  assignmentSelect.value = assignments.some(a => a.id === current) ? current : '';
+}
 // 실시간 자막 영역 위에 경고 표시 (마이크/브라우저 문제)
 function showSttNotice(message) {
     let el = document.getElementById('stt-notice');
@@ -624,6 +672,7 @@ function predictWebcam() {
 async function startPresentation() {
   const originalStartText = startBtn.innerHTML;
   clearSttNotice();
+  assignmentSelect.disabled = true; // 발표 중에는 과제 변경 불가
   try {
     startBtn.innerHTML = `<span class="material-symbols-outlined animate-spin" style="animation-duration: 2s;">sync</span> <span id="start-btn-text">연결 중...</span>`;
     startBtn.classList.add('opacity-70', 'pointer-events-none');
@@ -811,6 +860,7 @@ async function startPresentation() {
     }, 1000);
   } catch (err) {
     console.error('시작 오류:', err);
+    assignmentSelect.disabled = false;
     startBtn.innerHTML = originalStartText;
     startBtn.classList.remove('opacity-70', 'pointer-events-none');
     alert('오류 발생: ' + err.message + '\n(카메라/마이크 권한을 확인해주세요)');
@@ -819,6 +869,7 @@ async function startPresentation() {
 
 function endPresentation() {
   isPresenting = false;
+  assignmentSelect.disabled = false;
   
   if (recognition) {
       try { recognition.stop(); } catch(e){}
@@ -963,8 +1014,11 @@ async function showAnalysisModal() {
                   scores,
                   lastPresentation: presentation
               }, { merge: true });
+              const assignment = selectedAssignment();
               await addDoc(collection(db, "students", studentId, "sessions"), {
                   mode: 'presentation',
+                  assignmentId: assignment?.id || null,
+                  assignmentTitle: assignment?.title || '직접 작성한 대본',
                   createdAt: serverTimestamp(),
                   scores,
                   habitCounts: counts,
@@ -1086,17 +1140,23 @@ saveSettingsBtn.addEventListener('click', () => {
 function subscribeAssignments(classCode) {
     const assignmentsQ = query(collection(db, "assignments"), where("classCode", "==", classCode));
     onSnapshot(assignmentsQ, (snapshot) => {
-        const latest = snapshot.docs
-            .map(d => d.data())
+        const firstLoad = knownAssignmentIds === null;
+        const previous = new Map(assignments.map(a => [a.id, a]));
+        assignments = snapshot.docs
+            .map(d => ({ id: d.id, ...d.data() }))
             .filter(a => a.active && a.script)
-            .sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0))[0];
-        if (latest) {
-            scriptContent.innerText = latest.script;
-            scriptEditor.value = latest.script;
+            .sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0))
+            .map(a => ({ ...a, isNew: !firstLoad && (previous.get(a.id)?.isNew ?? !knownAssignmentIds.has(a.id)) }));
+        if (firstLoad) knownAssignmentIds = new Set(assignments.map(a => a.id));
+        renderAssignmentOptions();
+
+        // 처음 들어왔을 때는 가장 최근 과제를 선택 (이후 새 과제는 목록에 🆕 표시만)
+        if (firstLoad && assignments.length > 0 && !isPresenting && !isEditingScript) {
+            assignmentSelect.value = assignments[0].id;
+            renderScript(assignments[0].script);
         }
     }, (err) => console.error("Assignment sync error:", err));
 }
-
 // Logout
 const btnLogout = document.getElementById('btn-logout');
 if(btnLogout) {

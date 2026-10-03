@@ -98,13 +98,18 @@
         <aside class="w-full md:w-[450px] lg:w-[500px] border-r-4 border-black bg-white flex flex-col overflow-hidden shrink-0 z-10">
             <!-- Script Section -->
             <div class="flex-grow flex flex-col p-6 overflow-hidden relative">
-                <div class="flex justify-between items-center mb-6 border-b-4 border-black pb-4 shrink-0">
-                    <h2 class="font-black text-xl flex items-center gap-2 uppercase">
+                <div class="flex justify-between items-center gap-3 mb-6 border-b-4 border-black pb-4 shrink-0">
+                    <h2 class="font-black text-xl flex items-center gap-2 uppercase shrink-0">
                         <span class="material-symbols-outlined font-bold text-primary">description</span> Script
                     </h2>
-                    <button id="edit-script-btn" class="bg-secondary border-2 border-black px-3 py-1 font-black text-sm shadow-brutalist hover:bg-yellow-300 transition-colors flex items-center gap-1">
-                        <span class="material-symbols-outlined text-sm">edit</span> 수정
-                    </button>
+                    <div class="flex items-center gap-2 min-w-0">
+                        <select id="assignment-select" title="연습할 과제 선택" class="min-w-0 max-w-[220px] border-2 border-black bg-white px-2 py-1 font-bold text-sm shadow-brutalist focus:outline-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                            <option value="">✏️ 직접 작성한 대본</option>
+                        </select>
+                        <button id="edit-script-btn" class="shrink-0 bg-secondary border-2 border-black px-3 py-1 font-black text-sm shadow-brutalist hover:bg-yellow-300 transition-colors flex items-center gap-1">
+                            <span class="material-symbols-outlined text-sm">edit</span> 수정
+                        </button>
+                    </div>
                 </div>
                 
                 <div id="script-content" class="flex-grow overflow-y-auto custom-scroll pr-4 space-y-6 min-h-0">
