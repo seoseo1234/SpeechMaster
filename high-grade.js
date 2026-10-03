@@ -4,6 +4,7 @@ import { collection, onSnapshot, query, where, setDoc, addDoc, doc, serverTimest
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { analyzePresentation } from './apiClient.js';
 import { speedScore, volumeScore, ratioScore } from './scoring.js';
+import { createLevelMeter, micName, MIC_HELP } from './micCheck.js';
 
 let studentId = "";
 let studentName = "";
@@ -63,6 +64,9 @@ let volumeAnimation = null;
 let audioWorkletNode = null;
 
 let ws = null;
+let recognitionFatal = false;
+let micMeter = null;
+let presentationHadSound = true;
 let isPresenting = false;
 let startTime = 0;
 
@@ -346,6 +350,22 @@ function setupScriptEditor() {
   });
 }
 
+// 실시간 자막 영역 위에 경고 표시 (마이크/브라우저 문제)
+function showSttNotice(message) {
+    let el = document.getElementById('stt-notice');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'stt-notice';
+        el.className = 'mb-2 p-2 border-2 border-black bg-error text-white font-bold text-sm';
+        sttResult.parentElement.insertBefore(el, sttResult);
+    }
+    el.textContent = '⚠️ ' + message;
+}
+
+function clearSttNotice() {
+    document.getElementById('stt-notice')?.remove();
+}
+
 let interimText = '';
 function updateSTTUI(interim = '') {
     sttResult.innerHTML = `<span class="text-on-surface font-medium"></span> <span class="text-on-surface-variant italic opacity-70"></span>`;
@@ -599,6 +619,7 @@ function predictWebcam() {
 
 async function startPresentation() {
   const originalStartText = startBtn.innerHTML;
+  clearSttNotice();
   try {
     startBtn.innerHTML = `<span class="material-symbols-outlined animate-spin" style="animation-duration: 2s;">sync</span> <span id="start-btn-text">연결 중...</span>`;
     startBtn.classList.add('opacity-70', 'pointer-events-none');
@@ -648,12 +669,47 @@ async function startPresentation() {
 
             }
         };
+        recognition.onerror = (event) => {
+            console.warn('Speech recognition error:', event.error);
+            const messages = {
+                'not-allowed': `마이크 권한이 차단되어 실시간 자막을 표시할 수 없어요. ${MIC_HELP}`,
+                'service-not-allowed': '이 브라우저에서는 실시간 음성 인식이 허용되지 않아요. 크롬 또는 엣지를 사용해주세요.',
+                'audio-capture': `마이크를 찾을 수 없어요. ${MIC_HELP}`,
+                'network': '음성 인식 서버에 연결할 수 없어요. 학교 네트워크에서 Google 음성 인식이 차단되었을 수 있어요.'
+            };
+            if (messages[event.error]) {
+                recognitionFatal = true;
+                showSttNotice(messages[event.error]);
+            }
+        };
+        // 크롬은 잠시 조용하면 인식을 스스로 끝내므로 발표 중에는 다시 시작
+        recognition.onend = () => {
+            if (isPresenting && !recognitionFatal) {
+                try { recognition.start(); } catch(e){}
+            }
+        };
+        recognitionFatal = false;
         try { recognition.start(); } catch(e){}
+    } else {
+        showSttNotice('이 브라우저는 실시간 자막을 지원하지 않아요. 크롬 또는 엣지 브라우저를 사용해주세요. (발표 분석은 정상적으로 진행됩니다)');
     }
 
-    // Record audio for Gemini
+    // 시작 후 5초 동안 마이크 소리가 전혀 없으면 안내
+    micMeter = createLevelMeter(mediaStream);
+    const activeMic = micName(mediaStream);
+    setTimeout(() => {
+        if (isPresenting && micMeter && !micMeter.hasSound()) {
+            showSttNotice(`마이크에서 소리가 들리지 않아요. (사용 중인 마이크: ${activeMic}) 설정(톱니바퀴)에서 다른 마이크를 선택하거나, ${MIC_HELP}`);
+        }
+    }, 5000);
+
+    // Record audio for Gemini (영상 제외, 저비트레이트: 서버 업로드 한도 4MB ≈ 약 15분)
     audioChunks = [];
-    mediaRecorder = new MediaRecorder(mediaStream);
+    const audioMime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'].find(t => MediaRecorder.isTypeSupported(t));
+    mediaRecorder = new MediaRecorder(new MediaStream(mediaStream.getAudioTracks()), {
+        ...(audioMime ? { mimeType: audioMime } : {}),
+        audioBitsPerSecond: 32000
+    });
     mediaRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) audioChunks.push(e.data);
     };
@@ -808,6 +864,12 @@ function endPresentation() {
   volumeBar.style.width = '0%';
   volumeText.innerText = '0 dB';
 
+  presentationHadSound = micMeter ? micMeter.hasSound() : true;
+  if (micMeter) {
+    micMeter.stop();
+    micMeter = null;
+  }
+
   showAnalysisModal();
 }
 
@@ -825,6 +887,12 @@ async function showAnalysisModal() {
   document.getElementById('report-habits').innerText = `분석 중...`;
   document.getElementById('analysis-modal').classList.remove('hidden');
   
+  if (!presentationHadSound) {
+      document.getElementById('report-habits').innerText = `소리 없음`;
+      commentEl.textContent = `발표 중 마이크에서 소리가 들리지 않아 분석하지 않았습니다. ${MIC_HELP}`;
+      return;
+  }
+
   if (audioChunks.length === 0) {
       document.getElementById('report-habits').innerText = `오디오 없음`;
       commentEl.innerHTML = `녹음된 오디오가 없어 분석을 수행할 수 없습니다.`;
@@ -832,8 +900,11 @@ async function showAnalysisModal() {
   }
 
   try {
-      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-      
+      const audioBlob = new Blob(audioChunks, { type: (mediaRecorder.mimeType || 'audio/webm').split(';')[0] });
+      if (audioBlob.size > 4 * 1024 * 1024) {
+          throw new Error('발표 녹음이 너무 길어요. 약 15분 이내로 발표해주세요.');
+      }
+
       const avgTone = toneCount > 0 ? Math.round(totalTone / toneCount) : 0;
       // 말하기 속도: 인식된 전체 어절 수 / 발표 시간(분)
       const wordCount = fullRecognizedText.trim() ? fullRecognizedText.trim().split(/\s+/).length : 0;

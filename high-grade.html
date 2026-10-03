@@ -67,7 +67,7 @@
 </head>
 <body class="bg-background font-body-md text-on-surface h-screen flex flex-col overflow-hidden">
     <!-- TopAppBar -->
-    <header class="border-b-4 border-black bg-white z-50 flex justify-between items-center w-full px-8 h-24 sticky top-0 shrink-0">
+    <header class="border-b-4 border-black bg-white z-50 flex justify-between items-center w-full px-8 h-[72px] sticky top-0 shrink-0">
         <div class="flex items-center gap-6">
             <a href="#" onclick="window.location.replace('index.html'); return false;" class="bg-secondary border-4 border-black p-3 shadow-brutalist hover:bg-yellow-300 transition-colors block">
                 <span class="material-symbols-outlined text-black font-bold">home</span>
@@ -127,11 +127,11 @@
         </aside>
 
         <!-- Main Content: Camera & Analytics (Right) -->
-        <main class="flex-grow p-4 lg:p-6 bg-[#f0f0f0] flex flex-col overflow-y-auto custom-scroll">
-            <div class="flex flex-col gap-10 max-w-6xl mx-auto w-full flex-grow pb-8">
+        <main class="flex-grow min-w-0 p-4 lg:p-5 bg-[#f0f0f0] flex flex-col overflow-y-auto custom-scroll">
+            <div class="flex flex-col gap-5 max-w-6xl mx-auto w-full flex-grow min-h-0">
                 
                 <!-- Video Feed -->
-                <div class="brutalist-card bg-black relative overflow-hidden w-full flex-grow min-h-[400px]">
+                <div class="brutalist-card bg-black relative overflow-hidden w-full flex-grow basis-0 min-h-[260px]">
                     <video id="camera-feed" class="absolute inset-0 w-full h-full object-cover transform scale-x-[-1] opacity-90" autoplay muted playsinline></video>
                     <img id="camera-fallback" alt="Camera disabled" class="absolute inset-0 w-full h-full object-cover" src="./fallback_student_final.png">
                     
@@ -159,18 +159,18 @@
                     </div>
 
                     <!-- Left HUD: Graphs -->
-                    <div id="hud-left" class="absolute left-6 top-1/2 -translate-y-1/2 flex flex-col gap-6 z-30 pointer-events-none opacity-90 transition-opacity duration-300">
+                    <div id="hud-left" class="absolute left-6 top-16 bottom-6 flex flex-col justify-center gap-2 z-30 pointer-events-none opacity-90 transition-opacity duration-300">
                         <div class="text-white drop-shadow-md">
                             <div class="text-sm font-bold mb-1 uppercase tracking-wide">목소리 톤</div>
-                            <canvas id="tone-graph" width="140" height="50" class="border-b-2 border-white/30"></canvas>
+                            <canvas id="tone-graph" width="140" height="50" class="h-10 border-b-2 border-white/30"></canvas>
                         </div>
                         <div class="text-white drop-shadow-md">
                             <div class="text-sm font-bold mb-1 uppercase tracking-wide">속도</div>
-                            <canvas id="speed-graph" width="140" height="50" class="border-b-2 border-white/30"></canvas>
+                            <canvas id="speed-graph" width="140" height="50" class="h-10 border-b-2 border-white/30"></canvas>
                         </div>
                         <div class="text-white drop-shadow-md">
                             <div class="text-sm font-bold mb-1 uppercase tracking-wide">제스쳐</div>
-                            <canvas id="gesture-graph" width="140" height="50" class="border-b-2 border-white/30"></canvas>
+                            <canvas id="gesture-graph" width="140" height="50" class="h-10 border-b-2 border-white/30"></canvas>
                         </div>
                     </div>
 
@@ -192,13 +192,12 @@
                         </div>
                     </div>
                 </div>
-                </div>
 
                 <!-- Analytics Grid -->
-                <div class="grid grid-cols-12 gap-8 shrink-0">
+                <div class="grid grid-cols-12 gap-5 shrink-0 pb-2">
                     
                     <!-- Volume Level -->
-                    <div class="col-span-12 lg:col-span-3 brutalist-card bg-surface flex flex-col gap-2 p-4">
+                    <div class="col-span-12 lg:col-span-3 brutalist-card bg-surface flex flex-col justify-center gap-2 p-3">
                         <div class="flex justify-between items-center">
                             <span class="font-headline-lg font-black uppercase">음성 볼륨</span>
                             <span id="volume-text" class="font-bold text-secondary">0 dB</span>
@@ -209,7 +208,7 @@
                     </div>
                     
                     <!-- Habitual Words -->
-                    <div class="col-span-12 lg:col-span-5 brutalist-card bg-secondary flex flex-col gap-4 p-4">
+                    <div class="col-span-12 lg:col-span-5 brutalist-card bg-secondary flex flex-col gap-2 p-3">
                         <div class="flex justify-between items-center">
                             <span class="font-headline-lg font-black uppercase flex items-center gap-2">
                                 <span class="material-symbols-outlined font-black">hearing</span>
@@ -218,25 +217,25 @@
                             <button id="reset-habit-btn" class="text-xs font-black uppercase hover:text-primary transition-colors underline decoration-2 cursor-pointer">RESET</button>
                         </div>
                         <div class="flex gap-4">
-                            <div id="habit-item-uh" class="flex-1 bg-white border-2 border-black flex flex-col items-center p-2 transition-all">
+                            <div id="habit-item-uh" class="flex-1 bg-white border-2 border-black flex flex-col items-center py-1 px-2 transition-all">
                                 <span class="font-black text-sm text-surface-variant">어 / 아</span>
-                                <span id="count-uh" class="font-headline-lg font-black text-2xl">0회</span>
+                                <span id="count-uh" class="font-headline-lg font-black text-xl">0회</span>
                             </div>
-                            <div id="habit-item-um" class="flex-1 bg-white border-2 border-black flex flex-col items-center p-2 transition-all">
+                            <div id="habit-item-um" class="flex-1 bg-white border-2 border-black flex flex-col items-center py-1 px-2 transition-all">
                                 <span class="font-black text-sm text-surface-variant">음 / 음마</span>
-                                <span id="count-um" class="font-headline-lg font-black text-2xl">0회</span>
+                                <span id="count-um" class="font-headline-lg font-black text-xl">0회</span>
                             </div>
-                            <div id="habit-item-geu" class="flex-1 bg-white border-2 border-black flex flex-col items-center p-2 transition-all">
+                            <div id="habit-item-geu" class="flex-1 bg-white border-2 border-black flex flex-col items-center py-1 px-2 transition-all">
                                 <span class="font-black text-sm text-surface-variant">그 / 어그</span>
-                                <span id="count-geu" class="font-headline-lg font-black text-2xl">0회</span>
+                                <span id="count-geu" class="font-headline-lg font-black text-xl">0회</span>
                             </div>
                         </div>
                     </div>
                     
                     <!-- Pro Tip -->
-                    <div class="col-span-12 lg:col-span-4 brutalist-card bg-primary text-white flex flex-col p-4 relative overflow-hidden justify-center">
-                        <span class="font-black text-lg mb-2 z-10 flex items-center gap-2"><span class="material-symbols-outlined">lightbulb</span> PRO TIP</span>
-                        <p class="font-body-md z-10 leading-snug">천천히, 또렷하게 발음하세요. 습관어 대신 1초간 침묵하는 것이 더 프로페셔널해 보입니다.</p>
+                    <div class="col-span-12 lg:col-span-4 brutalist-card bg-primary text-white flex flex-col p-3 relative overflow-hidden justify-center">
+                        <span class="font-black text-lg mb-1 z-10 flex items-center gap-2"><span class="material-symbols-outlined">lightbulb</span> PRO TIP</span>
+                        <p class="font-body-md text-sm z-10 leading-snug">천천히, 또렷하게 발음하세요. 습관어 대신 1초간 침묵하는 것이 더 프로페셔널해 보입니다.</p>
                         <span class="material-symbols-outlined absolute -right-4 -bottom-4 text-8xl text-white opacity-20 transform -rotate-12">tips_and_updates</span>
                     </div>
                 </div>
@@ -245,16 +244,16 @@
     </div>
 
     <!-- Bottom Action Bar -->
-    <footer class="border-t-4 border-black bg-white w-full h-24 flex items-center justify-center gap-6 px-8 z-50 shrink-0">
-        <button id="reset-history-btn" class="brutalist-button bg-surface-variant text-black px-8 py-4 flex items-center justify-center gap-2 group hover:bg-gray-300">
+    <footer class="border-t-4 border-black bg-white w-full h-20 flex items-center justify-center gap-6 px-8 z-50 shrink-0">
+        <button id="reset-history-btn" class="brutalist-button bg-surface-variant text-black px-8 py-3 flex items-center justify-center gap-2 group hover:bg-gray-300">
             <span class="material-symbols-outlined font-black text-xl group-hover:-rotate-180 transition-transform duration-500">refresh</span>
             <span class="font-headline-lg text-lg font-black uppercase">기록 초기화</span>
         </button>
-        <button id="start-presentation-btn" class="brutalist-button bg-primary text-white px-16 py-4 w-full max-w-2xl flex items-center justify-center gap-4 group">
+        <button id="start-presentation-btn" class="brutalist-button bg-primary text-white px-16 py-3 w-full max-w-2xl flex items-center justify-center gap-4 group">
             <span class="material-symbols-outlined font-black text-3xl group-hover:rotate-12 transition-transform">mic</span>
             <span id="start-btn-text" class="font-headline-lg text-2xl font-black uppercase">발표 시작하기</span>
         </button>
-        <button id="end-presentation-btn" class="hidden brutalist-button bg-error text-white px-16 py-4 w-full max-w-2xl flex items-center justify-center gap-4 group">
+        <button id="end-presentation-btn" class="hidden brutalist-button bg-error text-white px-16 py-3 w-full max-w-2xl flex items-center justify-center gap-4 group">
             <span class="material-symbols-outlined font-black text-3xl group-hover:-rotate-12 transition-transform">stop</span>
             <span class="font-headline-lg text-2xl font-black uppercase">발표 종료 및 분석</span>
         </button>

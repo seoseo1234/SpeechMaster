@@ -1,4 +1,5 @@
 import { askGemini, assessPronunciation } from './apiClient.js';
+import { createLevelMeter, micName, MIC_HELP } from './micCheck.js';
 import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
@@ -403,13 +404,24 @@ document.addEventListener('DOMContentLoaded', async () => {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaRecorder = new MediaRecorder(stream);
       audioChunks = [];
+      const meter = createLevelMeter(stream);
+      const recordingMic = micName(stream);
 
       mediaRecorder.ondataavailable = e => {
         if (e.data.size > 0) audioChunks.push(e.data);
       };
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        const hasSound = meter.hasSound();
+        meter.stop();
+        if (!hasSound) {
+          // 무음이면 분석하지 않고 마이크 점검 안내
+          micText.innerText = '다시 해보기';
+          micIcon.innerText = 'replay';
+          alert(`마이크에서 소리가 들리지 않았어요. 🎤\n\n사용 중인 마이크: ${recordingMic}\n\n${MIC_HELP}`);
+          return;
+        }
+        const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
         processAudio(audioBlob);
       };
 
@@ -428,8 +440,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       renderSentence(targetSentence);
 
     } catch (err) {
-      alert('마이크 접근 권한이 필요합니다.');
       console.error(err);
+      if (err.name === 'NotFoundError') {
+        alert('연결된 마이크를 찾을 수 없어요. 마이크를 연결한 뒤 다시 시도해주세요.');
+      } else {
+        alert(`마이크 접근 권한이 필요합니다.\n\n${MIC_HELP}`);
+      }
     }
   });
 

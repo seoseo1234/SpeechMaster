@@ -23,6 +23,7 @@ async function request(path, init = {}) {
     headers: { ...(init.headers || {}), Authorization: `Bearer ${token}` },
   });
   const data = await response.json().catch(() => ({}));
+  if (response.status === 413) throw new Error('녹음 파일이 너무 커서 보낼 수 없어요. 녹음 시간을 줄여주세요.');
   if (!response.ok) throw new Error(data.error || `요청 실패 (${response.status})`);
   return data;
 }
