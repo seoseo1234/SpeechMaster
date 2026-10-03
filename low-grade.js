@@ -1,7 +1,32 @@
-// Import environment variables via Vite
-const invokeUrl = import.meta.env.VITE_CLOVA_SHORT_INVOKE_URL;
-const secretKey = import.meta.env.VITE_CLOVA_SHORT_SECRET_KEY;
-const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
+import { askGemini, assessPronunciation } from './apiClient.js';
+import { auth, db } from './firebase.js';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc, setDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
+
+const isGuestMode = localStorage.getItem('guestMode') === 'true';
+let studentProfile = null; // { uid, name, classCode } - 로그인한 학생만
+
+onAuthStateChanged(auth, async (user) => {
+  if ((!user || user.isAnonymous) && !isGuestMode) {
+    window.location.replace('login.html');
+    return;
+  }
+  if (user && !user.isAnonymous && !isGuestMode) {
+    try {
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      if (userDoc.exists() && userDoc.data().role === 'student') {
+        const data = userDoc.data();
+        studentProfile = { uid: user.uid, name: data.name || user.displayName || '', classCode: data.classCode };
+      }
+    } catch (e) {
+      console.error('Profile load error:', e);
+    }
+  }
+});
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
 
 let targetSentence = "로딩 중...";
 let currentMode = 'story'; // 'story' | 'practice' | 'finished'
@@ -12,6 +37,7 @@ let worstWordCache = "";
 // Session variables
 let sessionQuestionCount = 1;
 let sessionHistory = []; 
+let sessionResults = []; // 문제별 마지막 결과 { score, fluency }
 let currentQuestionStarEligible = true;
 const xpMax = 100;
 
@@ -246,8 +272,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       const div = document.createElement('div');
       div.className = 'flex items-center justify-between bg-surface-container-low p-4 rounded-xl border border-outline-variant';
       div.innerHTML = `
-        <span class="font-headline-md text-xl">${w}</span>
-        <button class="practice-word-btn px-4 py-2 bg-secondary text-on-secondary rounded-lg font-bold hover:bg-secondary-dark transition-colors" data-word="${w}">연습하기</button>
+        <span class="font-headline-md text-xl">${escapeHtml(w)}</span>
+        <button class="practice-word-btn px-4 py-2 bg-secondary text-on-secondary rounded-lg font-bold hover:bg-secondary-dark transition-colors" data-word="${escapeHtml(w)}">연습하기</button>
       `;
       wrongWordsList.appendChild(div);
     });
@@ -298,7 +324,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const words = text.split(' ');
     words.forEach((w, idx) => {
       for (let char of w) {
-        html += `<span class="letter-box">${char}</span>`;
+        html += `<span class="letter-box">${escapeHtml(char)}</span>`;
       }
       if (idx < words.length - 1) html += '<span class="mx-4"></span>';
     });
@@ -373,11 +399,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    if (!invokeUrl || !secretKey) {
-      alert('.env 파일에 VITE_CLOVA_INVOKE_URL과 VITE_CLOVA_SECRET_KEY를 설정해주세요.');
-      return;
-    }
-
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaRecorder = new MediaRecorder(stream);
@@ -389,7 +410,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       mediaRecorder.onstop = () => {
         const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-        processAudio(audioBlob, invokeUrl, secretKey);
+        processAudio(audioBlob);
       };
 
       mediaRecorder.start();
@@ -418,29 +439,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   await generateNewSentence();
 
   async function generateNewSentence() {
-    if (!geminiKey) {
-      targetSentence = "아기 다람쥐가 나무 위로 쪼르르 올라갔습니다.";
-      renderSentence(targetSentence);
-      return;
-    }
-    
     try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${geminiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{ text: "초등학교 저학년(1~3학년) 국어 교과서 수준의 동화책 지문이나 교육적인 문장 1개를 만들어줘. 발음 연습하기 좋게 길이는 20자 내외로 짧게 해줘. 부가 설명 없이 문장만 딱 출력해." }]
-          }]
-        })
-      });
-      if (response.ok) {
-        const data = await response.json();
-        targetSentence = data.candidates[0].content.parts[0].text.trim().replace(/^"|"$/g, '');
-      } else {
-        targetSentence = "바람이 시원하게 불어옵니다.";
-      }
+      const text = await askGemini('sentence');
+      targetSentence = text.replace(/^"|"$/g, '');
     } catch(e) {
+      console.error(e);
       targetSentence = "예쁜 꽃밭에 나비가 날아왔습니다.";
     }
     renderSentence(targetSentence);
@@ -461,65 +464,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     micBtn.classList.replace('chunky-button-primary', 'chunky-button-secondary');
   }
 
-  async function processAudio(audioBlob, url, secret) {
-    let rawUrl = url;
-    let requestOptions = {};
-
-    if (url.endsWith('/stt')) {
-      // Short sentence API (/recog/v1/stt) requires query params & octet-stream
-      const queryParams = new URLSearchParams({
-        lang: 'Kor',
-        assessment: 'true',
-        graph: 'true',
-        utterance: targetSentence
-      });
-      rawUrl = `${url}?${queryParams.toString()}`;
-      
-      requestOptions = {
-        method: 'POST',
-        headers: {
-          'X-CLOVASPEECH-API-KEY': secret,
-          'Content-Type': 'application/octet-stream'
-        },
-        body: audioBlob
-      };
-    } else {
-      // Standard upload API requires multipart/form-data
-      const formData = new FormData();
-      formData.append('media', audioBlob, 'record.webm');
-      formData.append('params', JSON.stringify({
-        language: 'ko-KR',
-        completion: 'sync',
-        assessment: true,
-        graph: true,
-        utterance: targetSentence
-      }));
-      
-      if (!url.endsWith('/upload')) {
-        rawUrl = `${url}/recognizer/upload`;
-      }
-      
-      requestOptions = {
-        method: 'POST',
-        headers: { 'X-CLOVASPEECH-API-KEY': secret },
-        body: formData
-      };
-    }
-
-    // Proxy request through Vite to avoid CORS issues
-    let proxiedUrl = rawUrl;
+  async function processAudio(audioBlob) {
     try {
-      const urlObj = new URL(rawUrl);
-      proxiedUrl = `/api/clova${urlObj.pathname}${urlObj.search}`;
-    } catch(e) {}
-
-    try {
-      const response = await fetch(proxiedUrl, requestOptions);
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.message || 'API Error');
-      }
+      const data = await assessPronunciation(audioBlob, targetSentence);
 
       const score = data.assessment_score;
       const recognizedText = data.text;
@@ -530,6 +477,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       const highlightedText = parsed.html || `<span class="text-error font-bold">음성이 인식되지 않았습니다.</span>`;
       
       const fluency = calculateFluency(usrGraph);
+      if (currentMode === 'story') {
+        sessionResults[sessionQuestionCount - 1] = { score: score || 0, fluency: fluency.score };
+      }
 
       if (score >= 80) {
         playSuccessSound();
@@ -656,31 +606,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         const fallbackWords = [`${parsed.worstWord}와`, `${parsed.worstWord}를`, `${parsed.worstWord}도`];
         
-        if (geminiKey) {
-          try {
-            const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${geminiKey}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                contents: [{
-                  parts: [{
-                    text: `초등학교 저학년 학생이 '${parsed.worstWord}'라는 단어를 발음하기 어려워해. 이 단어와 발음 원리나 구조(예: 겹받침, 연음 등)가 유사해서 발음 연습하기 좋은 '두 글자 이상'의 단어 3개를 쉼표로 구분해서 말해줘. (예: 한 글자 단어는 절대 안 됨). 부가 설명 없이 딱 단어 3개만 출력해.`
-                  }]
-                }]
-              })
-            });
-            
-            if (geminiResponse.ok) {
-              const geminiData = await geminiResponse.json();
-              recommendedWordsCache = geminiData.candidates[0].content.parts[0].text.trim();
-            } else {
-              recommendedWordsCache = fallbackWords.join(", ");
-            }
-          } catch (e) {
-            console.error("Gemini API Error", e);
-            recommendedWordsCache = fallbackWords.join(", ");
-          }
-        } else {
+        try {
+          recommendedWordsCache = await askGemini('words', { word: parsed.worstWord });
+        } catch (e) {
+          console.error("Gemini API Error", e);
           recommendedWordsCache = fallbackWords.join(", ");
         }
         
@@ -744,6 +673,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (xpBonus > 0) gainXp(xpBonus);
 
     modal.classList.remove('hidden');
+    saveReadingSession(totalStars);
+  }
+
+  // 낭독 세션 결과를 교사 대시보드용으로 저장 (로그인한 학생만)
+  async function saveReadingSession(totalStars) {
+    const results = sessionResults.filter(Boolean);
+    if (!studentProfile || results.length === 0) return;
+    
+    const avg = (key) => Math.round(results.reduce((sum, r) => sum + r[key], 0) / results.length);
+    const reading = {
+      avgScore: avg('score'),
+      avgFluency: avg('fluency'),
+      stars: totalStars,
+      questionCount: results.length,
+      wrongWords: wrongWords.slice(-5)
+    };
+    
+    try {
+      await setDoc(doc(db, 'students', studentProfile.uid), {
+        name: studentProfile.name,
+        classCode: studentProfile.classCode,
+        status: '완료',
+        accuracy: reading.avgScore,
+        lastDate: new Date().toLocaleString(),
+        lastUpdatedAt: serverTimestamp(),
+        scores: { pronunciation: reading.avgScore },
+        lastReading: reading
+      }, { merge: true });
+      await addDoc(collection(db, 'students', studentProfile.uid, 'sessions'), {
+        mode: 'reading',
+        createdAt: serverTimestamp(),
+        ...reading
+      });
+    } catch (e) {
+      console.error('Reading session save error:', e);
+    }
   }
 
   const restartSessionBtn = document.getElementById('restart-session-btn');
@@ -752,6 +717,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('result-modal').classList.add('hidden');
       sessionQuestionCount = 1;
       sessionHistory = [];
+      sessionResults = [];
       currentQuestionStarEligible = true;
       updateSessionStarsUI();
       
@@ -825,7 +791,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       for (let char of w) {
-        html += `<span class="letter-box ${colorClass}">${char}</span>`;
+        html += `<span class="letter-box ${colorClass}">${escapeHtml(char)}</span>`;
       }
       if (idx < words.length - 1) html += '<span class="mx-4"></span>';
     });

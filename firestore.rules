@@ -1,0 +1,73 @@
+rules_version = '2';
+
+// 배포: Firebase 콘솔 > Firestore Database > 규칙 탭에 붙여넣기
+//       또는 firebase deploy --only firestore:rules
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+    function me() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    function isTeacher() {
+      return signedIn() && me().role == 'teacher';
+    }
+    function teacherOf(classCode) {
+      return isTeacher() && me().classCode == classCode;
+    }
+    function classExists(code) {
+      return exists(/databases/$(database)/documents/classes/$(code));
+    }
+
+    // 사용자 프로필: 본인만 읽기/쓰기, 역할과 학급 코드는 가입 후 변경 불가
+    match /users/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.uid == uid
+        && request.resource.data.role in ['student', 'teacher']
+        && request.resource.data.classCode is string
+        && (request.resource.data.role == 'teacher' || classExists(request.resource.data.classCode));
+      allow update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'className']);
+      allow delete: if false;
+    }
+
+    // 학급: 문서 ID = 학급 코드. 이미 있는 코드는 다시 만들 수 없음(중복 방지)
+    match /classes/{code} {
+      allow get: if true; // 가입 전 학급 코드 확인용 (목록 조회는 불가)
+      allow list: if false;
+      allow create: if signedIn() && request.resource.data.teacherId == request.auth.uid
+        && me().role == 'teacher' && me().classCode == code;
+      allow update: if signedIn() && resource.data.teacherId == request.auth.uid
+        && request.resource.data.teacherId == request.auth.uid;
+      allow delete: if false;
+    }
+
+    // 학생 요약 기록: 학생 본인이 작성, 같은 학급 교사만 열람
+    match /students/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || teacherOf(resource.data.classCode));
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && me().role == 'student'
+        && request.resource.data.classCode == me().classCode;
+      allow delete: if false;
+
+      // 회차별 연습 기록 (누적)
+      match /sessions/{sessionId} {
+        allow read: if signedIn() && (request.auth.uid == uid
+          || teacherOf(get(/databases/$(database)/documents/students/$(uid)).data.classCode));
+        allow create: if signedIn() && request.auth.uid == uid && me().role == 'student';
+        allow update, delete: if false;
+      }
+    }
+
+    // 과제/대본: 교사가 자기 학급에 배포, 같은 학급 구성원만 열람
+    match /assignments/{id} {
+      allow read: if signedIn() && me().classCode == resource.data.classCode;
+      allow create: if teacherOf(request.resource.data.classCode)
+        && request.resource.data.teacherId == request.auth.uid;
+      allow update, delete: if isTeacher() && resource.data.teacherId == request.auth.uid;
+    }
+  }
+}

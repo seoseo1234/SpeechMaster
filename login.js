@@ -4,7 +4,8 @@ import {
     createUserWithEmailAndPassword, 
     signInWithPopup, 
     GoogleAuthProvider,
-    updateProfile
+    updateProfile,
+    signOut
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 
@@ -129,8 +130,26 @@ function generateClassCode() {
     return code;
 }
 
+function normalizeClassCode(value) {
+    return (value || '').trim().toUpperCase();
+}
+
+async function classCodeExists(code) {
+    if (!/^[A-Z0-9]{5}$/.test(code)) return false;
+    return (await getDoc(doc(db, 'classes', code))).exists();
+}
+
+// 아직 사용되지 않은 학급 코드 생성
+async function generateUniqueClassCode() {
+    for (let i = 0; i < 10; i++) {
+        const code = generateClassCode();
+        if (!(await classCodeExists(code))) return code;
+    }
+    throw new Error('학급 코드 생성에 실패했습니다. 다시 시도해주세요.');
+}
+
 // Helper: Save user data to Firestore
-async function handleUserRegistrationSuccess(user, nameStr) {
+async function handleUserRegistrationSuccess(user, nameStr, studentClassCode = '') {
     try {
         const userDocRef = doc(db, 'users', user.uid);
         
@@ -143,12 +162,21 @@ async function handleUserRegistrationSuccess(user, nameStr) {
         };
         
         if (selectedRole === 'student') {
-            userData.classCode = classCodeInput.value.trim().toUpperCase();
+            userData.classCode = studentClassCode;
         } else if (selectedRole === 'teacher') {
-            userData.classCode = generateClassCode(); // Assign a random class code to the teacher
+            userData.classCode = await generateUniqueClassCode();
         }
 
         await setDoc(userDocRef, userData);
+        
+        if (selectedRole === 'teacher') {
+            // 학급 문서를 만들어 코드를 예약 (학생 가입 시 코드 확인에 사용)
+            await setDoc(doc(db, 'classes', userData.classCode), {
+                teacherId: user.uid,
+                className: '내 학급',
+                createdAt: serverTimestamp()
+            });
+        }
         
         if (!user.displayName) {
             await updateProfile(user, { displayName: nameStr });
@@ -190,15 +218,23 @@ loginForm.addEventListener('submit', async (e) => {
             authLoading.classList.add('hidden');
             return;
         }
-        if (selectedRole === 'student' && !classCodeInput.value.trim()) {
-            alert('선생님에게 받은 학급 코드를 입력해주세요.');
-            authLoading.classList.add('hidden');
-            return;
+        const studentClassCode = normalizeClassCode(classCodeInput.value);
+        if (selectedRole === 'student') {
+            if (!studentClassCode) {
+                alert('선생님에게 받은 학급 코드를 입력해주세요.');
+                authLoading.classList.add('hidden');
+                return;
+            }
+            if (!(await classCodeExists(studentClassCode))) {
+                alert('존재하지 않는 학급 코드입니다. 선생님께 코드를 다시 확인해주세요.');
+                authLoading.classList.add('hidden');
+                return;
+            }
         }
 
         try {
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            await handleUserRegistrationSuccess(userCredential.user, nameStr);
+            await handleUserRegistrationSuccess(userCredential.user, nameStr, studentClassCode);
         } catch (error) {
             console.error("Registration Error:", error);
             if (error.code === 'auth/email-already-in-use') {
@@ -224,7 +260,18 @@ btnGoogleLogin.addEventListener('click', async () => {
         if (!docSnap.exists()) {
             // First time Google Login -> register
             const nameStr = nameInput.value.trim() || result.user.displayName || result.user.email.split('@')[0];
-            await handleUserRegistrationSuccess(result.user, nameStr);
+            let studentClassCode = '';
+            if (selectedRole === 'student') {
+                studentClassCode = normalizeClassCode(classCodeInput.value)
+                    || normalizeClassCode(prompt('처음 로그인했어요! 선생님께 받은 학급 코드 5자리를 입력하세요.'));
+                if (!(await classCodeExists(studentClassCode))) {
+                    alert('학급 코드가 올바르지 않습니다. 선생님께 코드를 확인한 뒤 다시 로그인해주세요.');
+                    await signOut(auth);
+                    authLoading.classList.add('hidden');
+                    return;
+                }
+            }
+            await handleUserRegistrationSuccess(result.user, nameStr, studentClassCode);
         } else {
             // Returning user -> just login
             window.location.href = 'index.html';

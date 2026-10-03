@@ -1,7 +1,9 @@
 import { FaceLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
 import { db, auth } from './firebase.js';
-import { collection, onSnapshot, query, orderBy, limit, setDoc, doc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, setDoc, addDoc, doc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { analyzePresentation } from './apiClient.js';
+import { speedScore, volumeScore, ratioScore } from './scoring.js';
 
 let studentId = "";
 let studentName = "";
@@ -11,7 +13,7 @@ const isGuestMode = localStorage.getItem('guestMode') === 'true';
 let studentClassCode = "";
 
 onAuthStateChanged(auth, async (user) => {
-    if (!user && !isGuestMode) {
+    if ((!user || user.isAnonymous) && !isGuestMode) {
         window.location.replace('login.html');
     } else if (isGuestMode) {
         currentUser = { uid: 'guest', role: 'student', displayName: '체험학생' };
@@ -34,9 +36,12 @@ onAuthStateChanged(auth, async (user) => {
         const userDoc = await getDoc(doc(db, "users", user.uid));
         if (userDoc.exists()) {
             studentClassCode = userDoc.data().classCode || "";
+            studentName = userDoc.data().name || studentName;
+            if (studentNameDisplay) studentNameDisplay.innerText = studentName;
             if (userDoc.data().role !== 'student') {
                 console.warn("User is not a student, but allowing access for testing.");
             }
+            if (studentClassCode) subscribeAssignments(studentClassCode);
         }
     }
 });
@@ -138,8 +143,7 @@ let lastSpeedCalcTime = 0;
 
 // Accumulators for Gemini Feedback
 let totalTone = 0, toneCount = 0;
-let totalSpeed = 0, speedCount = 0;
-let totalShaking = 0, shakingCount = 0;
+let totalShaking = 0, shakingCount = 0, shakingFrames = 0;
 let outOfGazeCount = 0, totalGazeFrames = 0;
 
 // Inline AudioWorklet for downsampling to 16kHz
@@ -344,7 +348,9 @@ function setupScriptEditor() {
 
 let interimText = '';
 function updateSTTUI(interim = '') {
-    sttResult.innerHTML = `<span class="text-on-surface font-medium">${fullRecognizedText}</span> <span class="text-on-surface-variant italic opacity-70">${interim}</span>`;
+    sttResult.innerHTML = `<span class="text-on-surface font-medium"></span> <span class="text-on-surface-variant italic opacity-70"></span>`;
+    sttResult.children[0].textContent = fullRecognizedText;
+    sttResult.children[1].textContent = interim;
     sttResult.parentElement.scrollTop = sttResult.parentElement.scrollHeight;
 }
 
@@ -556,6 +562,7 @@ function predictWebcam() {
                 
                 totalShaking += shakingScore;
                 shakingCount++;
+                if (isShaking) shakingFrames++;
                 totalGazeFrames++;
 
                 // 좌측 상단 메인 상태 표시기 업데이트
@@ -638,9 +645,7 @@ async function startPresentation() {
                 drawHUDGraph(speedGraphCtx, speedHistory, '#22C55E'); // Green
                 lastWordCount = words;
                 lastSpeedCalcTime = now;
-                
-                totalSpeed += speed;
-                speedCount++;
+
             }
         };
         try { recognition.start(); } catch(e){}
@@ -700,8 +705,7 @@ async function startPresentation() {
     
     // Reset Accumulators
     totalTone = 0; toneCount = 0;
-    totalSpeed = 0; speedCount = 0;
-    totalShaking = 0; shakingCount = 0;
+    totalShaking = 0; shakingCount = 0; shakingFrames = 0;
     outOfGazeCount = 0; totalGazeFrames = 0;
     
     // Reset Histories
@@ -831,58 +835,14 @@ async function showAnalysisModal() {
       const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
       
       const avgTone = toneCount > 0 ? Math.round(totalTone / toneCount) : 0;
-      const avgSpeed = speedCount > 0 ? Math.round(totalSpeed / speedCount) : 0;
+      // 말하기 속도: 인식된 전체 어절 수 / 발표 시간(분)
+      const wordCount = fullRecognizedText.trim() ? fullRecognizedText.trim().split(/\s+/).length : 0;
+      const avgSpeed = elapsedSeconds > 0 ? Math.round(wordCount / (elapsedSeconds / 60)) : 0;
       const avgShaking = shakingCount > 0 ? Math.round(totalShaking / shakingCount) : 0;
       const gazeScore = totalGazeFrames > 0 ? Math.round((1 - outOfGazeCount / totalGazeFrames) * 100) : 0;
       
 
-      const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      if (!geminiKey) throw new Error("Gemini API Key missing in .env");
-
-      const base64Audio = await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result.split(',')[1]);
-          reader.readAsDataURL(audioBlob);
-      });
-
-      const prompt = "첨부된 오디오 파일은 학생의 발표 녹음입니다.\n" +
-      "다음은 발표 중에 수집된 실시간 트래킹 데이터입니다:\n" +
-      "- 평균 목소리 톤 (0~255 수치): " + avgTone + "\n" +
-      "- 평균 말하기 속도: " + avgSpeed + "\n" +
-      "- 자세 불안정성 (흔들림 점수, 낮을수록 좋음): " + avgShaking + "\n" +
-      "- 정면 주시(시선 처리) 비율 (%): " + gazeScore + "\n\n" +
-      "학생이 발표 중 '어...', '음...', '그...' 와 같은 무의미한 습관어를 얼마나 사용했는지 오디오에서 찾아내주세요. 아주 짧은 찰나의 '어'나 '음'도 모두 카운트해야 합니다.\n\n" +
-      "결과는 반드시 다음 JSON 포맷으로만 출력해주세요:\n" +
-      "{\n" +
-      '  "habitCounts": {\n' +
-      '    "uh": (어, 아 사용 횟수 정수형),\n' +
-      '    "um": (음, 음마 사용 횟수 정수형),\n' +
-      '    "geu": (그, 어그 사용 횟수 정수형)\n' +
-      "  },\n" +
-      '  "feedback": "(트래킹 데이터와 발표 내용, 습관어 사용을 모두 종합하여 목소리의 크기/톤, 속도, 발표자세, 시선처리 등에 대한 매우 구체적이고 종합적인 피드백 코멘트를 3~4문장으로 작성해주세요. 수집된 데이터를 직접 언급하며 분석적인 조언을 제공해야 합니다.)"\n' +
-      "}";
-
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${geminiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-              contents: [{
-                  parts: [
-                      { text: prompt },
-                      { inlineData: { mimeType: "audio/webm", data: base64Audio } }
-                  ]
-              }]
-          })
-      });
-
-      if (!response.ok) {
-          throw new Error(`Gemini API Error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      let text = data.candidates[0].content.parts[0].text;
-      text = text.replace(/```json/g, '').replace(/```/g, '').trim();
-      const result = JSON.parse(text);
+      const result = await analyzePresentation(audioBlob, { avgTone, avgSpeed, avgShaking, gazeScore });
       
       const counts = result.habitCounts || { uh: 0, um: 0, geu: 0 };
       const totalHabits = counts.uh + counts.um + counts.geu;
@@ -900,40 +860,34 @@ async function showAnalysisModal() {
           commentEl.classList.add('text-error');
       }
       
-      commentEl.innerHTML = result.feedback;
+      commentEl.textContent = result.feedback;
       
-      // Upload to Firebase
+      // Upload to Firebase (요약은 병합 저장, 회차 기록은 누적)
       try {
-          const radarData = [
-              Math.min(100, Math.max(0, 100 - totalHabits * 5)), // 발음정밀도 (임시)
-              avgSpeed > 100 ? 90 : 70, // 말하기 속도
-              avgTone > 40 ? 95 : 60, // 성량 크기
-              gazeScore, // 시선 처리
-              avgShaking < 20 ? 90 : 60 // 자세 안정성
-          ];
+          const scores = {
+              volume: volumeScore((avgTone / 255) * 100),
+              gaze: gazeScore,
+              posture: ratioScore(shakingCount - shakingFrames, shakingCount)
+          };
+          if (avgSpeed > 0) scores.speed = speedScore(avgSpeed);
           
           if (!isGuestMode) {
+              const presentation = { wpm: avgSpeed, habitCount: totalHabits, durationSec: elapsedSeconds };
               await setDoc(doc(db, "students", studentId), {
                   name: studentName,
                   classCode: studentClassCode,
                   status: "완료",
-                  accuracy: radarData[0],
                   lastDate: new Date().toLocaleString(),
                   lastUpdatedAt: serverTimestamp(),
-                  radarData: radarData,
-                  historyData: { 
-                      labels: ['3월', '4월', '5월', '6월', '현재'], 
-                      wpm: [100, 105, 110, 115, avgSpeed], 
-                      accuracy: [60, 65, 70, 75, radarData[0]] 
-                  },
-                  weaknesses: [
-                      totalHabits > 5 ? "습관어 사용이 잦음" : "안정적인 어조",
-                      gazeScore < 80 ? "시선 이탈 잦음" : "시선 처리 양호"
-                  ],
-                  recommendations: [
-                      "거울을 보고 연습하기",
-                      "대본 숙지 후 시선 분산 줄이기"
-                  ]
+                  scores,
+                  lastPresentation: presentation
+              }, { merge: true });
+              await addDoc(collection(db, "students", studentId, "sessions"), {
+                  mode: 'presentation',
+                  createdAt: serverTimestamp(),
+                  scores,
+                  habitCounts: counts,
+                  ...presentation
               });
           }
       } catch (err) {
@@ -943,7 +897,8 @@ async function showAnalysisModal() {
   } catch (error) {
       console.error("Analysis Error:", error);
       document.getElementById('report-habits').innerText = `분석 실패`;
-      commentEl.innerHTML = `<span class="text-error">오류 발생: 제미나이 분석에 실패했습니다. (${error.message})</span>`;
+      commentEl.innerHTML = '<span class="text-error"></span>';
+      commentEl.firstChild.textContent = `오류 발생: 제미나이 분석에 실패했습니다. (${error.message})`;
   }
 }
 
@@ -1046,17 +1001,20 @@ saveSettingsBtn.addEventListener('click', () => {
     settingsModal.classList.add('hidden');
 });
 
-// Firebase Assignment Sync
-const assignmentsQ = query(collection(db, "assignments"), orderBy("createdAt", "desc"), limit(1));
-onSnapshot(assignmentsQ, (snapshot) => {
-    snapshot.forEach((doc) => {
-        const data = doc.data();
-        if (data.active && data.script) {
-            scriptContent.innerText = data.script;
-            scriptEditor.value = data.script;
+// Firebase Assignment Sync (내 학급에 배포된 가장 최근 대본)
+function subscribeAssignments(classCode) {
+    const assignmentsQ = query(collection(db, "assignments"), where("classCode", "==", classCode));
+    onSnapshot(assignmentsQ, (snapshot) => {
+        const latest = snapshot.docs
+            .map(d => d.data())
+            .filter(a => a.active && a.script)
+            .sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0))[0];
+        if (latest) {
+            scriptContent.innerText = latest.script;
+            scriptEditor.value = latest.script;
         }
-    });
-});
+    }, (err) => console.error("Assignment sync error:", err));
+}
 
 // Logout
 const btnLogout = document.getElementById('btn-logout');

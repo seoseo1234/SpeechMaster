@@ -1,6 +1,8 @@
 import { db, auth } from './firebase.js';
-import { collection, onSnapshot, addDoc, serverTimestamp, query, doc, getDoc, updateDoc, where } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, serverTimestamp, query, doc, getDoc, getDocs, setDoc, updateDoc, where, orderBy, limit } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { askGemini } from './apiClient.js';
+import { radarFromStudent, buildInsights, SCORE_LABELS } from './scoring.js';
 
 let currentUser = null;
 const isGuestMode = localStorage.getItem('guestMode') === 'true';
@@ -17,48 +19,45 @@ if (isGuestMode) {
     }, 500);
 } else {
     onAuthStateChanged(auth, async (user) => {
-        if (!user) {
+        if (!user || user.isAnonymous) {
             window.location.replace('login.html');
         } else {
             currentUser = user;
             
-            // Fetch role
+            // Fetch role (교사 프로필이 없거나 교사가 아니면 차단)
             const userDoc = await getDoc(doc(db, "users", user.uid));
-            if (userDoc.exists() && userDoc.data().role !== 'teacher') {
+            if (!userDoc.exists() || userDoc.data().role !== 'teacher') {
                 alert('접근 권한이 없습니다. (교사 전용)');
-                window.location.replace('login.html');
+                window.location.replace('index.html');
+                return;
             }
             
-            // Get classCode and className
-            let teacherClassCode = "";
-            let teacherClassName = "내 학급";
-            if (userDoc.exists()) {
-                teacherClassCode = userDoc.data().classCode || "NONE";
-                teacherClassName = userDoc.data().className || "내 학급";
-                const classCodeDisplay = document.getElementById('class-code-display');
-                if (classCodeDisplay) {
-                    classCodeDisplay.innerText = `코드: ${teacherClassCode}`;
-                }
-                const classNameDisplay = document.getElementById('class-name-display');
-                if (classNameDisplay) {
-                    classNameDisplay.innerText = teacherClassName;
-                    
-                    // Add edit listener
-                    classNameDisplay.addEventListener('click', async () => {
-                        const newName = prompt('새로운 반 이름을 입력하세요:', classNameDisplay.innerText);
-                        if (newName !== null && newName.trim() !== '') {
-                            try {
-                                await updateDoc(doc(db, "users", user.uid), {
-                                    className: newName.trim()
-                                });
-                                classNameDisplay.innerText = newName.trim();
-                            } catch (e) {
-                                console.error("Error updating class name:", e);
-                                alert("반 이름 변경 중 오류가 발생했습니다.");
-                            }
+            const teacherClassCode = userDoc.data().classCode;
+            const teacherClassName = userDoc.data().className || "내 학급";
+            await ensureClassDoc(user.uid, teacherClassCode, teacherClassName);
+            
+            const classCodeDisplay = document.getElementById('class-code-display');
+            if (classCodeDisplay) {
+                classCodeDisplay.innerText = `코드: ${teacherClassCode}`;
+            }
+            const classNameDisplay = document.getElementById('class-name-display');
+            if (classNameDisplay) {
+                classNameDisplay.innerText = teacherClassName;
+                
+                // Add edit listener
+                classNameDisplay.addEventListener('click', async () => {
+                    const newName = prompt('새로운 반 이름을 입력하세요:', classNameDisplay.innerText);
+                    if (newName !== null && newName.trim() !== '') {
+                        try {
+                            await updateDoc(doc(db, "users", user.uid), { className: newName.trim() });
+                            await updateDoc(doc(db, "classes", teacherClassCode), { className: newName.trim() });
+                            classNameDisplay.innerText = newName.trim();
+                        } catch (e) {
+                            console.error("Error updating class name:", e);
+                            alert("반 이름 변경 중 오류가 발생했습니다.");
                         }
-                    });
-                }
+                    }
+                });
             }
             
             const teacherNameDisplay = document.getElementById('teacher-name-display');
@@ -67,9 +66,27 @@ if (isGuestMode) {
             }
             
             // Init dashboard
+            teacherInfo = { uid: user.uid, classCode: teacherClassCode };
             initStudentList(teacherClassCode);
         }
     });
+}
+
+let teacherInfo = null;
+
+// 예전에 가입한 교사는 classes 문서가 없으므로 처음 접속 시 생성 (학생 가입 시 코드 확인용)
+async function ensureClassDoc(uid, classCode, className) {
+    try {
+        const classRef = doc(db, "classes", classCode);
+        const classSnap = await getDoc(classRef);
+        if (!classSnap.exists()) {
+            await setDoc(classRef, { teacherId: uid, className, createdAt: serverTimestamp() });
+        } else if (classSnap.data().teacherId !== uid) {
+            console.warn("학급 코드가 다른 교사와 중복됩니다:", classCode);
+        }
+    } catch (e) {
+        console.error("Error ensuring class doc:", e);
+    }
 }
 
 
@@ -111,156 +128,159 @@ function initStudentList(classCode = "GUEST") {
     }
 
     const q = query(collection(db, "students"), where("classCode", "==", classCode));
-    
+
     onSnapshot(q, (snapshot) => {
-        students = [];
-        studentListEl.innerHTML = '';
-        
-        snapshot.forEach((doc) => {
-            const st = { id: doc.id, ...doc.data() };
-            students.push(st);
-        });
-        
+        students = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+
         // Sort manually by lastUpdatedAt desc to avoid requiring composite indexes
-        students.sort((a, b) => {
-            const timeA = a.lastUpdatedAt ? a.lastUpdatedAt.toMillis() : 0;
-            const timeB = b.lastUpdatedAt ? b.lastUpdatedAt.toMillis() : 0;
-            return timeB - timeA;
+        students.sort((a, b) => toMillis(b.lastUpdatedAt) - toMillis(a.lastUpdatedAt));
+        renderStudentList();
+    }, (err) => {
+        console.error("Student list error:", err);
+        alert('학생 목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
+    });
+}
+
+function toMillis(t) {
+    if (!t) return 0;
+    if (typeof t === 'number') return t;
+    if (t.toMillis) return t.toMillis();
+    return new Date(t).getTime() || 0;
+}
+
+const STATUS_BADGES = {
+    '완료': ['bg-primary text-white', '완료'],
+    '진행중': ['bg-tertiary text-white', '진행중'],
+};
+
+function renderStudentList() {
+    studentListEl.replaceChildren();
+
+    students.forEach((st) => {
+        const li = document.createElement('li');
+        li.className = `p-4 border-b-2 border-gray-200 cursor-pointer hover:bg-gray-100 transition flex justify-between items-center`;
+        li.dataset.id = st.id;
+        li.innerHTML = `
+            <div class="flex flex-col gap-1">
+                <span class="font-bold text-lg" data-field="name"></span>
+                <span class="text-xs text-gray-500 font-medium" data-field="accuracy"></span>
+            </div>
+            <span data-field="status" class="text-xs px-2 py-1 font-bold"></span>
+        `;
+        // 학생이 입력한 값은 textContent로만 넣는다 (XSS 방지)
+        li.querySelector('[data-field="name"]').textContent = st.name || '이름 없음';
+        li.querySelector('[data-field="accuracy"]').textContent =
+            `발음 정확도: ${st.accuracy != null ? st.accuracy + '%' : '-'}`;
+        const [badgeClass, badgeText] = STATUS_BADGES[st.status] || ['bg-surface-variant text-gray-500 border border-gray-300', '대기'];
+        const badge = li.querySelector('[data-field="status"]');
+        badge.className += ' ' + badgeClass;
+        badge.textContent = badgeText;
+
+        li.addEventListener('click', () => {
+            highlightStudent(st.id);
+            selectStudent(st);
+            document.body.classList.add('show-dashboard');
         });
 
-        students.forEach((st) => {
-            const li = document.createElement('li');
-            li.className = `p-4 border-b-2 border-gray-200 cursor-pointer hover:bg-gray-100 transition flex justify-between items-center`;
-            
-            let statusBadge = '';
-            if (st.status === '완료') statusBadge = '<span class="bg-primary text-white text-xs px-2 py-1 font-bold">완료</span>';
-            else if (st.status === '진행중') statusBadge = '<span class="bg-tertiary text-white text-xs px-2 py-1 font-bold">진행중</span>';
-            else statusBadge = '<span class="bg-surface-variant text-gray-500 border border-gray-300 text-xs px-2 py-1 font-bold">대기</span>';
+        studentListEl.appendChild(li);
+    });
 
-            li.innerHTML = `
-                <div class="flex flex-col gap-1">
-                    <span class="font-bold text-lg">${st.name}</span>
-                    <span class="text-xs text-gray-500 font-medium">정확도: ${st.accuracy || 0}%</span>
-                </div>
-                ${statusBadge}
-            `;
-            
-            li.addEventListener('click', () => {
-                Array.from(studentListEl.children).forEach(child => {
-                    child.classList.remove('bg-yellow-100', 'border-l-8', 'border-secondary');
-                });
-                li.classList.add('bg-yellow-100', 'border-l-8', 'border-secondary');
-                selectStudent(st);
-                document.body.classList.add('show-dashboard');
-            });
-            
-            studentListEl.appendChild(li);
-        });
-        
-        // If currentStudent exists, refresh their data, otherwise select the first student
-        if (currentStudent) {
-            const updated = students.find(s => s.id === currentStudent.id);
-            if (updated) {
-                selectStudent(updated);
-            }
-        } else if (students.length > 0) {
-            // Auto-select first student and highlight its list item
-            const firstLi = studentListEl.firstElementChild;
-            if (firstLi) firstLi.classList.add('bg-yellow-100', 'border-l-8', 'border-secondary');
-            selectStudent(students[0]);
-        }
+    // If currentStudent exists, refresh their data, otherwise select the first student
+    const target = (currentStudent && students.find(s => s.id === currentStudent.id)) || students[0];
+    if (target) {
+        highlightStudent(target.id);
+        selectStudent(target);
+    }
+}
+
+function highlightStudent(id) {
+    Array.from(studentListEl.children).forEach(child => {
+        const active = child.dataset.id === id;
+        child.classList.toggle('bg-yellow-100', active);
+        child.classList.toggle('border-l-8', active);
+        child.classList.toggle('border-secondary', active);
     });
 }
 
 function loadMockStudents() {
     const mockNames = ['김지훈', '박서연', '이도윤', '최유진', '정하준', '강민서', '조준우', '윤지아', '임서준', '한지우'];
     const statuses = ['완료', '진행중', '대기'];
-    
+    const rand = () => Math.floor(Math.random() * 20) + 75; // 75~95
+    const day = 24 * 60 * 60 * 1000;
+
     students = mockNames.map((name, i) => {
         const status = statuses[i % 3];
-        const accVal = status === '대기' ? 0 : Math.floor(Math.random() * 20) + 75; // 75~95
-        const speedVal = status === '대기' ? 0 : Math.floor(Math.random() * 20) + 75;
-        const volVal = status === '대기' ? 0 : Math.floor(Math.random() * 20) + 75;
-        const gazeVal = status === '대기' ? 0 : Math.floor(Math.random() * 20) + 75;
-        const postureVal = status === '대기' ? 0 : Math.floor(Math.random() * 20) + 75;
-        
+        if (status === '대기') {
+            return { id: `mock_${i}`, name, status, lastDate: '-', lastUpdatedAt: 0, mockSessions: [] };
+        }
+        const scores = { pronunciation: rand(), speed: rand(), volume: rand(), gaze: rand(), posture: rand() };
+        const mockSessions = [3, 2, 1, 0].flatMap((weeksAgo, k) => {
+            const createdAt = Date.now() - weeksAgo * 7 * day;
+            return [
+                { mode: 'reading', createdAt, avgScore: scores.pronunciation - (3 - k) * 5 },
+                { mode: 'presentation', createdAt: createdAt + 3600000, wpm: 140 - k * 8 }
+            ];
+        });
         return {
             id: `mock_${i}`,
-            name: name,
-            status: status,
-            accuracy: accVal,
-            lastDate: status === '대기' ? '-' : '2026.07.16',
-            lastUpdatedAt: new Date().getTime() - Math.random() * 10000000,
-            radarData: [accVal, speedVal, volVal, gazeVal, postureVal],
-            historyData: {
-                labels: status === '대기' ? [] : ['3/4', '3/15', '4/2', '오늘'],
-                accuracy: status === '대기' ? [] : [accVal - 15, accVal - 10, accVal - 5, accVal]
-            },
-            weaknesses: status === '대기' ? [] : ['말하기 속도가 다소 빠름', '특정 자음(ㅅ, ㄹ) 발음 불명확'],
-            recommendations: status === '대기' ? [] : ['천천히 또박또박 읽는 연습', '거울을 보고 입모양을 크게 벌리기']
+            name,
+            status,
+            accuracy: scores.pronunciation,
+            lastDate: new Date().toLocaleString(),
+            lastUpdatedAt: Date.now() - Math.random() * 10000000,
+            scores,
+            lastPresentation: { wpm: 116, habitCount: i % 2 ? 6 : 2 },
+            lastReading: { wrongWords: ['읽었습니다', '닭'] },
+            mockSessions
         };
     });
 
-    studentListEl.innerHTML = '';
-    students.sort((a, b) => b.lastUpdatedAt - a.lastUpdatedAt).forEach((st) => {
-        const li = document.createElement('li');
-        li.className = `p-4 border-b-2 border-gray-200 cursor-pointer hover:bg-gray-100 transition flex justify-between items-center`;
-        
-        let statusBadge = '';
-        if (st.status === '완료') statusBadge = '<span class="bg-primary text-white text-xs px-2 py-1 font-bold">완료</span>';
-        else if (st.status === '진행중') statusBadge = '<span class="bg-tertiary text-white text-xs px-2 py-1 font-bold">진행중</span>';
-        else statusBadge = '<span class="bg-surface-variant text-gray-500 border border-gray-300 text-xs px-2 py-1 font-bold">대기</span>';
-
-        li.innerHTML = `
-            <div class="flex flex-col gap-1">
-                <span class="font-bold text-lg">${st.name}</span>
-                <span class="text-xs text-gray-500 font-medium">정확도: ${st.accuracy}%</span>
-            </div>
-            ${statusBadge}
-        `;
-        
-        li.addEventListener('click', () => {
-            Array.from(studentListEl.children).forEach(child => {
-                child.classList.remove('bg-yellow-100', 'border-l-8', 'border-secondary');
-            });
-            li.classList.add('bg-yellow-100', 'border-l-8', 'border-secondary');
-            selectStudent(st);
-        });
-        
-        studentListEl.appendChild(li);
-    });
-
-    if (students.length > 0) {
-        const firstLi = studentListEl.firstElementChild;
-        if (firstLi) firstLi.classList.add('bg-yellow-100', 'border-l-8', 'border-secondary');
-        selectStudent(students[0]);
-    }
+    students.sort((a, b) => b.lastUpdatedAt - a.lastUpdatedAt);
+    renderStudentList();
 }
 
 
 // Select Student & Update Dashboard
-function selectStudent(st) {
+async function selectStudent(st) {
     currentStudent = st;
     emptyState.classList.add('hidden');
     dashboardContent.classList.remove('hidden');
-    
+
     stName.innerText = st.name || '이름 없음';
     stLastDate.innerText = st.lastDate || '기록 없음';
-    
-    // Update Weaknesses safely
-    const wList = st.weaknesses && st.weaknesses.length > 0 ? st.weaknesses : ['분석 데이터가 부족합니다.'];
-    const rList = st.recommendations && st.recommendations.length > 0 ? st.recommendations : ['낭독/발표 연습을 진행해주세요.'];
-    
-    stWeaknesses.innerHTML = wList.map(w => `<li>${w}</li>`).join('');
-    stRecommendations.innerHTML = rList.map(r => `<li>${r}</li>`).join('');
-    
+
+    const insights = buildInsights(st);
+    const wList = insights.weaknesses.length > 0 ? insights.weaknesses : ['분석 데이터가 부족합니다.'];
+    const rList = insights.recommendations.length > 0 ? insights.recommendations : ['낭독/발표 연습을 진행해주세요.'];
+    renderList(stWeaknesses, wList);
+    renderList(stRecommendations, rList);
+
     // Reset NEIS
     neisOutput.value = '';
     btnCopyNeis.disabled = true;
 
-    // Update Charts safely
-    updateRadarChart(st.radarData || [0, 0, 0, 0, 0]);
-    updateLineChart(st.historyData || { labels: [], accuracy: [] });
+    updateRadarChart(radarFromStudent(st));
+
+    // 회차별 기록 불러오기 (최근 30회)
+    let sessions = st.mockSessions || [];
+    if (!st.mockSessions) {
+        try {
+            const sq = query(collection(db, "students", st.id, "sessions"), orderBy("createdAt", "desc"), limit(30));
+            sessions = (await getDocs(sq)).docs.map(d => d.data()).reverse();
+        } catch (e) {
+            console.error("Session history error:", e);
+        }
+    }
+    if (currentStudent !== st) return; // 그 사이 다른 학생을 선택한 경우
+    updateLineChart(sessions);
+}
+
+function renderList(listEl, items) {
+    listEl.replaceChildren(...items.map(text => {
+        const li = document.createElement('li');
+        li.textContent = text;
+        return li;
+    }));
 }
 
 // Chart.js Default styling to match brutalism
@@ -275,7 +295,7 @@ function updateRadarChart(dataArr) {
     radarChartInstance = new Chart(ctx, {
         type: 'radar',
         data: {
-            labels: ['발음정밀도', '말하기 속도(적절성)', '성량 크기', '시선 처리', '자세 안정성'],
+            labels: SCORE_LABELS,
             datasets: [{
                 label: '역량 점수',
                 data: dataArr,
@@ -296,7 +316,8 @@ function updateRadarChart(dataArr) {
                     angleLines: { color: 'rgba(0,0,0,0.2)' },
                     grid: { color: 'rgba(0,0,0,0.2)', circular: true },
                     pointLabels: { font: { size: 14, weight: '900', family: "'Plus Jakarta Sans'" }, color: '#000' },
-                    ticks: { display: false, min: 0, max: 100 }
+                    min: 0, max: 100,
+                    ticks: { display: false }
                 }
             },
             plugins: { legend: { display: false } }
@@ -304,32 +325,39 @@ function updateRadarChart(dataArr) {
     });
 }
 
-function updateLineChart(history) {
+function updateLineChart(sessions) {
     const ctx = document.getElementById('lineChart').getContext('2d');
     if (lineChartInstance) lineChartInstance.destroy();
-    
+
+    const labels = sessions.map(s => {
+        const d = new Date(toMillis(s.createdAt));
+        return `${d.getMonth() + 1}/${d.getDate()}`;
+    });
+
     lineChartInstance = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: history.labels,
+            labels,
             datasets: [
                 {
                     label: '발음 정확도 (%)',
-                    data: history.accuracy,
+                    data: sessions.map(s => s.mode === 'reading' ? s.avgScore : null),
                     borderColor: '#3B82F6', // primary blue
                     backgroundColor: '#3B82F6',
                     borderWidth: 4,
                     tension: 0.3,
+                    spanGaps: true,
                     yAxisID: 'y'
                 },
                 {
-                    label: '말하기 속도 (WPM)',
-                    data: history.wpm,
+                    label: '말하기 속도 (어절/분)',
+                    data: sessions.map(s => s.mode === 'presentation' ? s.wpm : null),
                     borderColor: '#22C55E', // tertiary green
                     backgroundColor: '#22C55E',
                     borderWidth: 4,
                     borderDash: [5, 5],
                     tension: 0.3,
+                    spanGaps: true,
                     yAxisID: 'y1'
                 }
             ]
@@ -352,8 +380,8 @@ function updateLineChart(history) {
                 y1: {
                     type: 'linear', display: true, position: 'right',
                     grid: { drawOnChartArea: false, borderColor: '#000', borderWidth: 3 },
-                    title: { display: true, text: '속도 (WPM)', font: { weight: 'black' } },
-                    min: 50, max: 200
+                    title: { display: true, text: '속도 (어절/분)', font: { weight: 'black' } },
+                    min: 0, max: 200
                 }
             },
             plugins: {
@@ -372,44 +400,20 @@ btnGenerateNeis.addEventListener('click', async () => {
     btnGenerateNeis.disabled = true;
     
     try {
-        const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
-        if (!geminiKey) throw new Error("Gemini API Key missing in .env");
-
-        const safeWeaknesses = currentStudent.weaknesses || ["데이터 부족"];
-        const safeRadar = currentStudent.radarData || [0, 0, 0, 0, 0];
-
-        const prompt = "당신은 초등학교 교사입니다. 학생의 발표 기록 데이터를 바탕으로 나이스(NEIS) 학교생활기록부 교과세특 또는 행동특성 및 종합의견에 들어갈 만한 \"서술형 관찰평가 피드백 문구\"를 작성해주세요.\n\n" +
-        "[학생 데이터]\n" +
-        "- 이름: " + (currentStudent.name || '학생') + "\n" +
-        "- 평균 정확도: " + (currentStudent.accuracy || 0) + "%\n" +
-        "- 주요 취약점: " + safeWeaknesses.join(', ') + "\n" +
-        "- 5대 역량(100점 만점): 발음정밀도(" + safeRadar[0] + "), 말하기 속도(" + safeRadar[1] + "), 성량 크기(" + safeRadar[2] + "), 시선 처리(" + safeRadar[3] + "), 자세 안정성(" + safeRadar[4] + ")\n\n" +
-        "[작성 지침]\n" +
-        "1. 공손하고 전문적인 교사의 어투(평어체, ~함, ~임)로 작성해주세요.\n" +
-        "2. 장점(역량 점수가 높은 부분)을 먼저 칭찬하고, 단점(취약점)은 보완 방향성을 제시하는 긍정적인 방향으로 작성해주세요.\n" +
-        "3. 길이는 2~3문장, 150자 내외로 매우 간결하게 작성해주세요.\n" +
-        "4. 오직 작성된 생기부 문구 텍스트만 출력하세요. json 포맷을 쓰지 마세요.";
-
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${geminiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }]
-            })
+        const text = await askGemini('neis', {
+            name: currentStudent.name,
+            accuracy: currentStudent.accuracy,
+            weaknesses: buildInsights(currentStudent).weaknesses,
+            radar: radarFromStudent(currentStudent)
         });
-
-        if (!response.ok) {
-            throw new Error(`Gemini API Error: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        neisOutput.value = data.candidates[0].content.parts[0].text.trim();
+        neisOutput.value = text;
         btnCopyNeis.disabled = false;
         
     } catch (error) {
         console.error("NEIS Gen Error:", error);
-        neisOutput.value = `오류 발생: 생기부 문구 생성에 실패했습니다. (${error.message})\n임시 문구: 학생은 학기 초 대비 발음 정확도가 크게 향상되었으며, 발표에 대한 자신감을 획득함. 다만 시선 처리가 다소 불안정하여 꾸준한 훈련이 필요함.`;
-        btnCopyNeis.disabled = false;
+        neisOutput.value = '';
+        btnCopyNeis.disabled = true;
+        alert(`생기부 문구 생성에 실패했습니다. 잠시 후 다시 시도해주세요.\n(${error.message})`);
     } finally {
         neisLoading.classList.add('hidden');
         btnGenerateNeis.disabled = false;
@@ -446,13 +450,21 @@ closeAssignBtns.forEach(btn => {
                 return;
             }
             
+            if (isGuestMode || !teacherInfo) {
+                alert('둘러보기 모드에서는 과제를 배포할 수 없습니다.');
+                modalAssign.classList.add('hidden');
+                return;
+            }
+
             btn.innerText = '배포 중...';
             btn.disabled = true;
-            
+
             try {
                 await addDoc(collection(db, "assignments"), {
                     title: scriptTitle || '제목 없는 과제',
                     script: scriptText,
+                    classCode: teacherInfo.classCode,
+                    teacherId: teacherInfo.uid,
                     createdAt: serverTimestamp(),
                     active: true
                 });

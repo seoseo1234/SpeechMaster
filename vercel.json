@@ -1,8 +1,6 @@
 {
-  "rewrites": [
-    {
-      "source": "/api/clova/:match*",
-      "destination": "https://clovaspeech-gw.ncloud.com/:match*"
-    }
-  ]
+  "functions": {
+    "api/analyze-presentation.js": { "maxDuration": 60 },
+    "api/clova-stt.js": { "maxDuration": 30 }
+  }
 }

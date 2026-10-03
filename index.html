@@ -810,7 +810,7 @@
             localStorage.setItem('guestMode', 'true');
             localStorage.setItem('guestRole', 'student');
             applyGuestUI('student');
-        } else if (!auth.currentUser) {
+        } else if (!auth.currentUser || auth.currentUser.isAnonymous) {
             localStorage.removeItem('guestMode');
             localStorage.removeItem('guestRole');
             applyGuestUI(null);
@@ -864,7 +864,8 @@
     }
 
     onAuthStateChanged(auth, async (user) => {
-      if (user) {
+      // 익명 로그인(둘러보기 모드에서 AI 호출용)은 비로그인으로 취급
+      if (user && !user.isAnonymous) {
         // Logged in
         let role = 'student';
         try {
