@@ -185,12 +185,44 @@ function renderStudentList() {
         studentListEl.appendChild(li);
     });
 
+    updateClassStats();
+
     // If currentStudent exists, refresh their data, otherwise select the first student
     const target = (currentStudent && students.find(s => s.id === currentStudent.id)) || students[0];
     if (target) {
         highlightStudent(target.id);
         selectStudent(target);
+    } else {
+        showEmptyClass();
     }
+}
+
+// 학급 현황판: 평균 정확도, 오늘 연습한 학생 수, 학생 수
+function updateClassStats() {
+    const total = students.length;
+    const measured = students.filter(st => st.accuracy != null);
+    const avg = measured.length
+        ? Math.round(measured.reduce((sum, st) => sum + st.accuracy, 0) / measured.length) + '%'
+        : '-';
+    const today = new Date().toDateString();
+    const doneToday = students.filter(st =>
+        st.lastUpdatedAt && st.status === '완료' && new Date(toMillis(st.lastUpdatedAt)).toDateString() === today
+    ).length;
+
+    document.getElementById('stat-avg-accuracy').textContent = avg;
+    document.getElementById('stat-today-done').textContent = `${doneToday}/${total}명`;
+    document.getElementById('student-count').textContent = `학생 목록 (${total}명)`;
+    document.getElementById('assign-target-all').textContent = `우리 반 전체 (${total}명)`;
+}
+
+function showEmptyClass() {
+    currentStudent = null;
+    dashboardContent.classList.add('hidden');
+    emptyState.classList.remove('hidden');
+    document.getElementById('empty-title').textContent = '아직 가입한 학생이 없어요';
+    document.getElementById('empty-desc').textContent = teacherInfo
+        ? `학생들에게 학급 코드 ${teacherInfo.classCode} 를 알려주고 회원가입하게 해주세요.`
+        : '학생이 가입하면 이곳에 표시됩니다.';
 }
 
 function highlightStudent(id) {

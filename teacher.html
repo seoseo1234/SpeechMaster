@@ -122,11 +122,11 @@
                 <div class="grid grid-cols-2 gap-2 text-center">
                     <div class="bg-white border-2 border-black p-2">
                         <div class="text-xs font-bold text-gray-500">평균 정확도</div>
-                        <div class="text-xl font-black text-primary">87%</div>
+                        <div id="stat-avg-accuracy" class="text-xl font-black text-primary">-</div>
                     </div>
                     <div class="bg-white border-2 border-black p-2">
                         <div class="text-xs font-bold text-gray-500">오늘 발표 완료</div>
-                        <div class="text-xl font-black text-tertiary">14/24명</div>
+                        <div id="stat-today-done" class="text-xl font-black text-tertiary">0/0명</div>
                     </div>
                 </div>
                 <button id="btn-assign-script" class="brutalist-button bg-tertiary text-white w-full py-3 mt-4 font-black flex justify-center items-center gap-2 hover:bg-green-600">
@@ -138,7 +138,7 @@
             <!-- Student List -->
             <div class="flex-1 flex flex-col overflow-hidden">
                 <div class="p-4 border-b-2 border-black bg-white flex justify-between items-center shadow-md z-10 relative">
-                    <h3 class="font-black">학생 목록 (24명)</h3>
+                    <h3 id="student-count" class="font-black">학생 목록 (0명)</h3>
                     <span class="material-symbols-outlined cursor-pointer hover:text-primary">filter_list</span>
                 </div>
                 <ul id="student-list" class="flex-1 overflow-y-auto custom-scrollbar">
@@ -250,8 +250,8 @@
             <!-- Empty State -->
             <div id="empty-state" class="h-full flex flex-col items-center justify-center text-center text-gray-500">
                 <span class="material-symbols-outlined text-6xl mb-4 opacity-50">account_circle</span>
-                <h2 class="text-2xl font-black">학생을 선택해주세요</h2>
-                <p class="font-medium mt-2">좌측 목록에서 학생을 클릭하면 상세 리포트를 볼 수 있습니다.</p>
+                <h2 id="empty-title" class="text-2xl font-black">학생을 선택해주세요</h2>
+                <p id="empty-desc" class="font-medium mt-2">좌측 목록에서 학생을 클릭하면 상세 리포트를 볼 수 있습니다.</p>
             </div>
 
         </main>
@@ -275,8 +275,7 @@
                 <div>
                     <label class="font-black block mb-2">대상 학생</label>
                     <select class="w-full border-4 border-black p-3 font-bold bg-surface-variant focus:outline-none focus:bg-white">
-                        <option>5학년 2반 전체 (24명)</option>
-                        <option>개별 선택...</option>
+                        <option id="assign-target-all">우리 반 전체</option>
                     </select>
                 </div>
                 <div>

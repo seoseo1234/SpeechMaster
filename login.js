@@ -168,7 +168,17 @@ async function handleUserRegistrationSuccess(user, nameStr, studentClassCode = '
         }
 
         await setDoc(userDocRef, userData);
-        
+
+        if (selectedRole === 'student') {
+            // 가입 즉시 교사 대시보드 학생 목록에 '대기' 상태로 표시
+            await setDoc(doc(db, 'students', user.uid), {
+                name: nameStr,
+                classCode: studentClassCode,
+                status: '대기',
+                lastUpdatedAt: serverTimestamp()
+            });
+        }
+
         if (selectedRole === 'teacher') {
             // 학급 문서를 만들어 코드를 예약 (학생 가입 시 코드 확인에 사용)
             await setDoc(doc(db, 'classes', userData.classCode), {
