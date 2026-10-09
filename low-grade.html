@@ -176,6 +176,11 @@
             color: #ba1a1a;
             font-weight: 800;
         }
+        .letter-box.spoken {
+            background: #dbeafe;
+            border-bottom: 4px solid #3B82F6;
+            color: #1d4ed8;
+        }
         .letter-box.highlight-green {
             border-bottom: 4px solid #006e21;
             color: #006e21;
@@ -236,7 +241,16 @@
                     레벨 <span id="level-number">1</span> <span id="level-icon" class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">stars</span>
                 </div>
             </div>
-            
+
+            <!-- 선생님이 배포한 낭독 지문 선택 (과제가 있을 때만 표시) -->
+            <div id="reading-assignment-picker" class="hidden flex items-center gap-2 mb-4 px-2">
+                <span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1;">menu_book</span>
+                <label for="reading-assignment-select" class="font-label-lg text-on-surface whitespace-nowrap">읽을 지문</label>
+                <select id="reading-assignment-select" class="flex-1 min-w-0 bg-white border-2 border-outline-variant rounded-full px-4 py-2 font-label-lg text-on-surface focus:outline-none focus:border-secondary">
+                    <option value="">✨ AI 추천 문장</option>
+                </select>
+            </div>
+
             <div class="chunky-card bg-white p-component-padding-lg rounded-xl flex flex-col items-center text-center">
                 <!-- Session Stars Tracker -->
                 <div id="session-stars" class="flex flex-wrap justify-center gap-1 md:gap-2 mb-6 bg-surface-container-low px-4 md:px-6 py-2 md:py-3 rounded-full border-2 border-outline-variant">
@@ -255,6 +269,13 @@
                 <div class="mb-8 w-full">
                     <div id="story-box" class="flex flex-wrap justify-center font-headline-xl text-headline-xl text-on-surface tracking-widest leading-relaxed">
                         새로운 지문을 불러오는 중입니다... ⏳
+                    </div>
+                    <!-- 녹음 중 실시간 자막 -->
+                    <div id="live-transcript" class="hidden w-full max-w-2xl mx-auto mt-6 px-5 py-3 rounded-xl bg-surface-container-low border-2 border-dashed border-outline-variant text-left" aria-live="polite">
+                        <span class="font-label-lg text-on-surface-variant flex items-center gap-1">
+                            <span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">record_voice_over</span> 내가 읽은 말
+                        </span>
+                        <p id="live-transcript-text" class="font-headline-md text-on-surface mt-1 min-h-[1.5em] break-keep"></p>
                     </div>
                 </div>
                 

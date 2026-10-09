@@ -266,9 +266,9 @@
 
     <!-- Result Modal (Hidden initially) -->
     <div id="analysis-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-        <div class="bg-white p-8 max-w-2xl w-full flex flex-col gap-8 brutalist-card relative overflow-hidden">
+        <div class="bg-white p-8 max-w-2xl w-full max-h-[92vh] overflow-y-auto flex flex-col gap-8 brutalist-card relative">
             <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20 pointer-events-none"></div>
-            
+
             <h2 class="text-3xl font-headline-xl font-black text-center relative z-10 border-b-4 border-black pb-4 uppercase">발표 분석 리포트</h2>
             
             <div class="bg-secondary p-6 relative z-10 space-y-6 border-4 border-black shadow-brutalist">
@@ -279,6 +279,24 @@
                 <div class="flex justify-between items-center border-b-4 border-black pb-4">
                     <span class="text-xl font-black">발견된 습관어</span>
                     <span id="report-habits" class="text-3xl font-black text-error">총 0회</span>
+                </div>
+                <!-- 내 발표 다시 듣기 (녹음은 이 기기에서만 재생, 저장 안 함) -->
+                <div id="replay-section" class="hidden flex flex-col gap-3 border-b-4 border-black pb-4">
+                    <span class="text-xl font-black flex items-center gap-2">
+                        <span class="material-symbols-outlined">headphones</span> 내 발표 다시 듣기
+                    </span>
+                    <audio id="replay-audio" controls preload="auto" class="w-full"></audio>
+                    <div id="replay-timeline" class="relative h-10 bg-white border-2 border-black cursor-pointer overflow-hidden">
+                        <div id="replay-playhead" class="absolute top-0 bottom-0 w-0.5 bg-black z-20 pointer-events-none"></div>
+                    </div>
+                    <div class="flex flex-wrap gap-3 text-sm font-bold">
+                        <span class="flex items-center gap-1"><span class="inline-block w-1.5 h-4" style="background:#ba1a1a"></span>습관어(자막 기준, 대략적인 위치)</span>
+                        <span class="flex items-center gap-1"><span class="inline-block w-4 h-3 opacity-70" style="background:#3B82F6"></span>시선 이탈</span>
+                        <span class="flex items-center gap-1"><span class="inline-block w-4 h-3 opacity-70" style="background:#F97316"></span>자세 흔들림</span>
+                    </div>
+                    <p id="replay-summary" class="font-bold"></p>
+                    <div id="replay-events" class="flex flex-wrap gap-2"></div>
+                    <p class="text-xs font-bold opacity-70">녹음은 이 기기에서만 다시 들을 수 있으며 저장되지 않아요. 창을 닫거나 새 발표를 시작하면 사라집니다.</p>
                 </div>
                 <div class="flex flex-col gap-3">
                     <span class="text-xl font-black">종합 코멘트</span>

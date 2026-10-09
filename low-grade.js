@@ -2,10 +2,64 @@ import { askGemini, assessPronunciation } from './apiClient.js';
 import { createLevelMeter, micName, MIC_HELP } from './micCheck.js';
 import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, addDoc, collection, query, where, onSnapshot, serverTimestamp } from 'firebase/firestore';
 
 const isGuestMode = localStorage.getItem('guestMode') === 'true';
 let studentProfile = null; // { uid, name, classCode } - 로그인한 학생만
+
+// 레벨·경험치·오답 노트: 로그인한 학생은 Firestore(students/{uid}.readingProgress)에 저장해
+// 기기를 바꿔도 이어지고 공용 기기에서 다른 학생 기록과 섞이지 않는다. 둘러보기는 이 기기에만 저장.
+const MAX_WRONG_WORDS = 50;
+let currentLevel = 1;
+let currentXp = 0;
+let wrongWords = [];
+let onProgressLoaded = () => {}; // 화면 준비 후 레벨 표시 갱신 함수로 교체됨
+let onAssignmentsChanged = () => {}; // 화면 준비 후 과제 목록 갱신 함수로 교체됨
+
+if (isGuestMode) {
+  currentLevel = parseInt(localStorage.getItem('speechbuddy_level')) || 1;
+  currentXp = parseInt(localStorage.getItem('speechbuddy_xp')) || 0;
+  wrongWords = JSON.parse(localStorage.getItem('speechbuddy_wrong_words')) || [];
+}
+
+let saveProgressTimer = null;
+function saveProgress() {
+  if (!studentProfile) {
+    if (!isGuestMode) return;
+    localStorage.setItem('speechbuddy_level', currentLevel);
+    localStorage.setItem('speechbuddy_xp', currentXp);
+    localStorage.setItem('speechbuddy_wrong_words', JSON.stringify(wrongWords));
+    return;
+  }
+  // 연속 호출(경험치 + 오답 추가 등)은 한 번에 저장
+  clearTimeout(saveProgressTimer);
+  saveProgressTimer = setTimeout(async () => {
+    try {
+      await setDoc(doc(db, 'students', studentProfile.uid), {
+        name: studentProfile.name,
+        classCode: studentProfile.classCode,
+        readingProgress: { level: currentLevel, xp: currentXp, wrongWords }
+      }, { merge: true });
+    } catch (e) {
+      console.error('Reading progress save error:', e);
+    }
+  }, 500);
+}
+
+// 교사가 배포한 저학년 낭독 지문
+let readingAssignments = [];
+let readingAssignmentsReceived = false;
+function subscribeReadingAssignments(classCode) {
+  const q = query(collection(db, 'assignments'), where('classCode', '==', classCode));
+  onSnapshot(q, (snapshot) => {
+    readingAssignments = snapshot.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(a => a.active && a.script && a.mode === 'reading')
+      .sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+    readingAssignmentsReceived = true;
+    onAssignmentsChanged();
+  }, (err) => console.error('Assignment sync error:', err));
+}
 
 onAuthStateChanged(auth, async (user) => {
   if ((!user || user.isAnonymous) && !isGuestMode) {
@@ -18,6 +72,15 @@ onAuthStateChanged(auth, async (user) => {
       if (userDoc.exists() && userDoc.data().role === 'student') {
         const data = userDoc.data();
         studentProfile = { uid: user.uid, name: data.name || user.displayName || '', classCode: data.classCode };
+        const studentDoc = await getDoc(doc(db, 'students', user.uid));
+        const progress = studentDoc.exists() ? studentDoc.data().readingProgress : null;
+        if (progress) {
+          currentLevel = progress.level || 1;
+          currentXp = progress.xp || 0;
+          wrongWords = progress.wrongWords || [];
+        }
+        onProgressLoaded();
+        if (data.classCode) subscribeReadingAssignments(data.classCode);
       }
     } catch (e) {
       console.error('Profile load error:', e);
@@ -48,7 +111,6 @@ let appSettings = JSON.parse(localStorage.getItem('speechbuddy_settings')) || {
   theme: 'default',
   sound: true
 };
-let wrongWords = JSON.parse(localStorage.getItem('speechbuddy_wrong_words')) || [];
 const successAudio = new Audio('https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3');
 
 function playSuccessSound() {
@@ -59,9 +121,6 @@ function playSuccessSound() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  let currentLevel = parseInt(localStorage.getItem('speechbuddy_level')) || 1;
-  let currentXp = parseInt(localStorage.getItem('speechbuddy_xp')) || 0;
-
   function updateLevelDisplay() {
     const levelNumber = document.getElementById('level-number');
     if (levelNumber) levelNumber.innerText = currentLevel;
@@ -87,9 +146,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       currentLevel++;
       levelChanged = true;
     }
-    localStorage.setItem('speechbuddy_xp', currentXp);
+    saveProgress();
     if (levelChanged) {
-      localStorage.setItem('speechbuddy_level', currentLevel);
       showToast(`🎉 레벨 업! 현재 레벨 ${currentLevel} 🎉`);
       updateLevelSpeakerIcon();
     }
@@ -136,6 +194,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   updateLevelDisplay();
+  onProgressLoaded = updateLevelDisplay;
 
   const settingsBtn = document.getElementById('settings-btn');
   const settingsModal = document.getElementById('settings-modal');
@@ -258,8 +317,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!word) return;
     if (!wrongWords.includes(word)) {
       wrongWords.push(word);
-      localStorage.setItem('speechbuddy_wrong_words', JSON.stringify(wrongWords));
+      if (wrongWords.length > MAX_WRONG_WORDS) wrongWords = wrongWords.slice(-MAX_WRONG_WORDS);
+      saveProgress();
     }
+  }
+
+  // 오답 노트 단어를 연습해서 통과하면 노트에서 지운다
+  function removeWrongWord(word) {
+    if (!wrongWords.includes(word)) return;
+    wrongWords = wrongWords.filter(w => w !== word);
+    saveProgress();
   }
 
   function renderWrongWords() {
@@ -286,6 +353,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentMode = 'practice';
         practiceAttemptCount = 0;
         targetSentence = w;
+        worstWordCache = w;
         renderSentence(targetSentence);
         if (recommendationBox) recommendationBox.style.display = 'none';
         if (feedbackSection) feedbackSection.style.display = 'none';
@@ -297,7 +365,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (clearNotesBtn) clearNotesBtn.addEventListener('click', () => {
     wrongWords = [];
-    localStorage.removeItem('speechbuddy_wrong_words');
+    saveProgress();
     renderWrongWords();
   });
 
@@ -316,16 +384,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   const practiceBtn = document.getElementById('practice-btn');
 
   // Function to render letter-box UI
-  function renderSentence(text, highlightHtml = null) {
+  const liveTranscript = document.getElementById('live-transcript');
+  const liveTranscriptText = document.getElementById('live-transcript-text');
+
+  // spoken: 녹음 중 실시간 자막으로 읽은 것으로 확인된 단어 위치(Set)
+  function renderSentence(text, highlightHtml = null, spoken = null) {
     if (highlightHtml) {
       storyBox.innerHTML = highlightHtml;
       return;
     }
+    if (!spoken) liveTranscript.classList.add('hidden'); // 새 문장이면 이전 자막 숨김
     let html = '';
     const words = text.split(' ');
     words.forEach((w, idx) => {
+      const cls = spoken?.has(idx) ? 'letter-box spoken' : 'letter-box';
       for (let char of w) {
-        html += `<span class="letter-box">${escapeHtml(char)}</span>`;
+        html += `<span class="${cls}">${escapeHtml(char)}</span>`;
       }
       if (idx < words.length - 1) html += '<span class="mx-4"></span>';
     });
@@ -348,8 +422,199 @@ document.addEventListener('DOMContentLoaded', async () => {
   let audioChunks = [];
   let stream = null;
 
+  // 실시간 자막: 녹음하는 동안 브라우저 음성 인식으로 학생이 말한 말을 바로 보여준다.
+  // (발음 점수는 지금처럼 녹음이 끝난 뒤 클로바 평가로 매김. 지원하지 않는 브라우저는 자막만 생략)
+  const SpeechRecognitionApi = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let liveRecognition = null;
+  let liveHeardWords = null; // 이번 녹음에서 실시간 자막으로 바르게 들린 단어 위치 (자막을 못 쓰면 null)
+
+  const cleanWord = (w) => w.replace(/[^\p{L}\p{N}]/gu, '');
+  const wordsMatch = (target, heard) => target && heard && (
+    target === heard ||
+    (heard.length >= 2 && (target.startsWith(heard) || heard.startsWith(target))) ||
+    (target.length >= 2 && heard.length >= 2 && target.slice(0, 2) === heard.slice(0, 2))
+  );
+
+  // 들린 단어를 지문 단어와 순서대로 맞춰 본다 (한두 단어를 건너뛰어도 따라가도록 앞의 3단어까지 비교)
+  function matchSpokenWords(target, heardText) {
+    const targetWords = target.split(' ').map(cleanWord);
+    const heardWords = heardText.split(/\s+/).map(cleanWord).filter(Boolean);
+    const spoken = new Set();
+    let next = 0;
+    heardWords.forEach(h => {
+      for (let k = next; k < Math.min(next + 3, targetWords.length); k++) {
+        if (wordsMatch(targetWords[k], h)) {
+          spoken.add(k);
+          next = k + 1;
+          break;
+        }
+      }
+    });
+    return spoken;
+  }
+
+  function startLiveTranscript() {
+    liveHeardWords = null;
+    if (!SpeechRecognitionApi) return;
+    const rec = new SpeechRecognitionApi();
+    rec.lang = 'ko-KR';
+    rec.continuous = true;
+    rec.interimResults = true;
+    let finalText = '';
+
+    liveTranscriptText.textContent = '듣고 있어요... 👂';
+    liveTranscriptText.classList.add('opacity-50');
+    liveTranscript.classList.remove('hidden');
+
+    rec.onresult = (event) => {
+      if (liveRecognition !== rec) return; // 녹음이 끝난 뒤 늦게 온 결과는 무시
+      let interim = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const text = event.results[i][0].transcript;
+        if (event.results[i].isFinal) finalText += text + ' ';
+        else interim += text;
+      }
+      const heard = (finalText + interim).trim();
+      if (!heard) return;
+      liveHeardWords = matchSpokenWords(targetSentence, heard);
+      liveTranscriptText.textContent = heard;
+      liveTranscriptText.classList.remove('opacity-50');
+      renderSentence(targetSentence, null, liveHeardWords);
+    };
+    rec.onerror = (event) => {
+      // 권한/네트워크 문제면 자막만 끄고 녹음과 평가는 계속
+      if (['not-allowed', 'service-not-allowed', 'network', 'audio-capture'].includes(event.error)) {
+        console.warn('Live transcript unavailable:', event.error);
+        if (liveRecognition === rec) liveRecognition = null;
+        liveTranscript.classList.add('hidden');
+      }
+    };
+    // 잠깐 조용하면 인식이 스스로 끝나므로 녹음 중이면 다시 시작
+    rec.onend = () => {
+      if (isRecording && liveRecognition === rec) {
+        try { rec.start(); } catch (e) {}
+      }
+    };
+    liveRecognition = rec;
+    try { rec.start(); } catch (e) {}
+  }
+
+  function stopLiveTranscript() {
+    const rec = liveRecognition;
+    liveRecognition = null;
+    if (rec) {
+      try { rec.stop(); } catch (e) {}
+    }
+    // 아무 말도 인식되지 않았으면 자막 상자를 숨김
+    if (liveTranscriptText.classList.contains('opacity-50')) liveTranscript.classList.add('hidden');
+  }
+
+  // 과제 지문을 고르면 그 지문을 문장 단위로 나눠 차례로 읽는다 (안 고르면 AI 추천 문장 10개)
+  const MAX_ASSIGNMENT_SENTENCES = 20;
+  const assignmentPicker = document.getElementById('reading-assignment-picker');
+  const assignmentSelect = document.getElementById('reading-assignment-select');
+  let sessionSentences = null;
+  let sessionTotal = 10;
+  let sentenceRequestId = 0;
+  let assignmentsLoaded = false;
+
+  function splitSentences(text) {
+    return text.split(/\n+|(?<=[.!?])\s+/).map(t => t.trim()).filter(Boolean).slice(0, MAX_ASSIGNMENT_SENTENCES);
+  }
+
+  function selectedReadingAssignment() {
+    return readingAssignments.find(a => a.id === assignmentSelect.value) || null;
+  }
+
+  function updateSessionTitle() {
+    const sessionTitle = document.getElementById('session-title');
+    if (!sessionTitle) return;
+    const assignment = selectedReadingAssignment();
+    const label = assignment ? `📌 ${assignment.title || '선생님 과제'}` : '오늘의 문장 읽기';
+    sessionTitle.innerText = `${label} (${sessionQuestionCount}/${sessionTotal})`;
+  }
+
+  function renderSessionStars() {
+    const starsContainer = document.getElementById('session-stars');
+    if (!starsContainer) return;
+    starsContainer.replaceChildren(...Array.from({ length: sessionTotal }, () => {
+      const star = document.createElement('span');
+      star.textContent = 'star';
+      star.style.fontVariationSettings = "'FILL' 1";
+      return star;
+    }));
+    updateSessionStarsUI();
+  }
+
+  function renderAssignmentOptions() {
+    const current = assignmentSelect.value;
+    const options = [new Option('✨ AI 추천 문장', '')];
+    readingAssignments.forEach(a => {
+      const d = a.createdAt?.toDate?.();
+      const date = d ? ` (${d.getMonth() + 1}/${d.getDate()})` : '';
+      options.push(new Option(`📌 ${a.title || '선생님 과제'}${date}`, a.id));
+    });
+    assignmentSelect.replaceChildren(...options);
+    assignmentSelect.value = readingAssignments.some(a => a.id === current) ? current : '';
+    assignmentPicker.classList.toggle('hidden', readingAssignments.length === 0);
+  }
+
+  onAssignmentsChanged = () => {
+    const firstLoad = !assignmentsLoaded;
+    assignmentsLoaded = true;
+    const previous = assignmentSelect.value;
+    renderAssignmentOptions();
+    // 처음 들어왔을 때 과제가 있고 아직 시작 전이면 가장 최근 과제로 시작
+    const untouched = sessionQuestionCount === 1 && sessionResults.length === 0 && !isRecording;
+    if (firstLoad && readingAssignments.length > 0 && untouched) {
+      assignmentSelect.value = readingAssignments[0].id;
+      startSession();
+    } else if (previous && !assignmentSelect.value && !isRecording) {
+      startSession(); // 보던 과제가 삭제/비활성화됨
+    }
+  };
+
+  if (readingAssignmentsReceived) onAssignmentsChanged();
+
+  let activeAssignmentId = '';
+  assignmentSelect.addEventListener('change', () => {
+    if (isRecording) {
+      alert('녹음 중에는 지문을 바꿀 수 없습니다. 먼저 정지해주세요.');
+      assignmentSelect.value = activeAssignmentId;
+      return;
+    }
+    startSession();
+  });
+
+  async function startSession() {
+    const assignment = selectedReadingAssignment();
+    activeAssignmentId = assignment?.id || '';
+    sessionSentences = assignment ? splitSentences(assignment.script) : null;
+    if (sessionSentences && sessionSentences.length === 0) sessionSentences = null;
+    sessionTotal = sessionSentences ? sessionSentences.length : 10;
+
+    document.getElementById('result-modal').classList.add('hidden');
+    sessionQuestionCount = 1;
+    sessionHistory = [];
+    sessionResults = [];
+    currentQuestionStarEligible = true;
+    renderSessionStars();
+
+    currentMode = 'story';
+    if (skipBtn) skipBtn.style.display = 'flex';
+    renderSentence("새로운 지문을 불러오는 중입니다... ⏳");
+    if (feedbackSection) feedbackSection.style.display = 'none';
+    if (recommendationBox) recommendationBox.style.display = 'none';
+    micText.innerText = '누르고 말하기';
+    micIcon.innerText = 'mic';
+    micBtn.classList.replace('chunky-button-primary', 'chunky-button-secondary');
+    updateSessionTitle();
+
+    await generateNewSentence();
+  }
+
   async function nextQuestion() {
-    if (sessionQuestionCount >= 10) {
+    if (sessionQuestionCount >= sessionTotal) {
       showResultModal();
       return;
     }
@@ -366,8 +631,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     micIcon.innerText = 'mic';
     micBtn.classList.replace('chunky-button-primary', 'chunky-button-secondary');
     
-    const sessionTitle = document.getElementById('session-title');
-    if (sessionTitle) sessionTitle.innerText = `오늘의 문장 읽기 (${sessionQuestionCount}/10)`;
+    updateSessionTitle();
     
     await generateNewSentence();
   }
@@ -438,6 +702,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       feedbackSection.style.display = 'none';
       renderSentence(targetSentence);
+      startLiveTranscript();
 
     } catch (err) {
       console.error(err);
@@ -450,23 +715,35 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   renderSentence("새로운 지문을 불러오는 중입니다... ⏳");
+  renderSessionStars();
+  updateSessionTitle();
 
   // Generate initial sentence using Gemini
   await generateNewSentence();
 
   async function generateNewSentence() {
+    const requestId = ++sentenceRequestId;
+    if (sessionSentences) {
+      targetSentence = sessionSentences[sessionQuestionCount - 1];
+      renderSentence(targetSentence);
+      return;
+    }
+    let text;
     try {
-      const text = await askGemini('sentence');
-      targetSentence = text.replace(/^"|"$/g, '');
+      text = (await askGemini('sentence')).replace(/^"|"$/g, '');
     } catch(e) {
       console.error(e);
-      targetSentence = "예쁜 꽃밭에 나비가 날아왔습니다.";
+      text = "예쁜 꽃밭에 나비가 날아왔습니다.";
     }
+    // 기다리는 사이 과제 지문으로 바뀌었으면 무시
+    if (requestId !== sentenceRequestId) return;
+    targetSentence = text;
     renderSentence(targetSentence);
   }
 
   function stopRecording() {
     isRecording = false;
+    stopLiveTranscript();
     mediaRecorder.stop();
     stream.getTracks().forEach(track => track.stop());
 
@@ -484,12 +761,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const data = await assessPronunciation(audioBlob, targetSentence);
 
-      const score = data.assessment_score;
       const recognizedText = data.text;
       const details = data.assessment_details;
       const usrGraph = data.usr_graph || [];
-      
-      const parsed = parseAssessmentDetails(details, targetSentence);
+      console.info('[CLOVA 발음 평가]', { score: data.assessment_score, recognizedText, details });
+
+      const parsed = parseAssessmentDetails(details, targetSentence, liveHeardWords);
+      const score = Math.max(data.assessment_score || 0, parsed.score ?? 0);
       const highlightedText = parsed.html || `<span class="text-error font-bold">음성이 인식되지 않았습니다.</span>`;
       
       const fluency = calculateFluency(usrGraph);
@@ -526,6 +804,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (currentMode === 'practice') {
         practiceAttemptCount++;
         if (score >= 80) {
+          removeWrongWord(targetSentence);
           feedbackMsg = `우와, 정말 대단해! 오늘 어려운 글자 '${worstWordCache}'(을)를 완벽하게 마스터했어! 발음 점수 ${score}점!`;
           detailMsg = `요정이 ${score}점을 주었어요! 이제 어떤 단어든 자신감 있게 읽을 수 있어요.`;
           currentMode = 'finished';
@@ -573,10 +852,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else if (score >= 80) {
           if (fluency.pauseCount > 0) {
             feedbackMsg = `발음은 아주 좋았어! 하지만 중간에 너무 길게 쉬어간 곳이 ${fluency.pauseCount}번 있었네. 물 흐르듯 자연스럽게 이어서 읽어볼까?`;
-            detailMsg = `가장 헷갈려 했던 단어는 '${parsed.worstWord}'예요. 유창성 점수는 ${fluency.score}점입니다.`;
-          } else {
+            detailMsg = parsed.worstWord
+              ? `가장 헷갈려 했던 단어는 '${parsed.worstWord}'예요. 유창성 점수는 ${fluency.score}점입니다.`
+              : `모든 단어를 또박또박 잘 읽었어요. 유창성 점수는 ${fluency.score}점입니다.`;
+          } else if (parsed.worstWord) {
             feedbackMsg = `참 잘했어! '${parsed.worstWord}' 부분만 한 번 더 또박또박 읽어보면 완벽할 것 같아!`;
             detailMsg = `전체적으로 훌륭하지만 '${parsed.worstWord}' 발음이 살짝 아쉬웠어요. 유창성 점수는 ${fluency.score}점입니다.`;
+          } else {
+            feedbackMsg = `참 잘했어! 모든 단어를 또박또박 읽었어!`;
+            detailMsg = `조금만 더 또렷하게 읽으면 만점이에요. 유창성 점수는 ${fluency.score}점입니다.`;
           }
           
           currentMode = 'finished';
@@ -671,11 +955,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let rank = 'F';
     let xpBonus = 0;
-    if (totalStars === 10) { rank = 'A'; xpBonus = 50; }
-    else if (totalStars >= 8) { rank = 'B'; xpBonus = 30; }
-    else if (totalStars >= 6) { rank = 'C'; xpBonus = 20; }
-    else if (totalStars >= 4) { rank = 'D'; xpBonus = 10; }
-    else if (totalStars >= 2) { rank = 'E'; xpBonus = 5; }
+    const starRatio = totalStars / sessionTotal;
+    if (starRatio >= 1) { rank = 'A'; xpBonus = 50; }
+    else if (starRatio >= 0.8) { rank = 'B'; xpBonus = 30; }
+    else if (starRatio >= 0.6) { rank = 'C'; xpBonus = 20; }
+    else if (starRatio >= 0.4) { rank = 'D'; xpBonus = 10; }
+    else if (starRatio >= 0.2) { rank = 'E'; xpBonus = 5; }
     
     document.getElementById('result-rank').innerText = rank;
     document.getElementById('result-detail').innerText = `총 ${totalStars}개의 별을 획득했어요!\n보너스 XP: +${xpBonus}점`;
@@ -698,7 +983,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!studentProfile || results.length === 0) return;
     
     const avg = (key) => Math.round(results.reduce((sum, r) => sum + r[key], 0) / results.length);
+    const assignment = selectedReadingAssignment();
     const reading = {
+      assignmentId: assignment?.id || null,
+      assignmentTitle: assignment?.title || 'AI 추천 문장',
       avgScore: avg('score'),
       avgFluency: avg('fluency'),
       stars: totalStars,
@@ -728,91 +1016,71 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   const restartSessionBtn = document.getElementById('restart-session-btn');
-  if (restartSessionBtn) {
-    restartSessionBtn.addEventListener('click', async () => {
-      document.getElementById('result-modal').classList.add('hidden');
-      sessionQuestionCount = 1;
-      sessionHistory = [];
-      sessionResults = [];
-      currentQuestionStarEligible = true;
-      updateSessionStarsUI();
-      
-      currentMode = 'story';
-      if (skipBtn) skipBtn.style.display = 'flex';
-      renderSentence("새로운 지문을 불러오는 중입니다... ⏳");
-      if (feedbackSection) feedbackSection.style.display = 'none';
-      if (recommendationBox) recommendationBox.style.display = 'none';
-      micText.innerText = '누르고 말하기';
-      micIcon.innerText = 'mic';
-      micBtn.classList.replace('chunky-button-primary', 'chunky-button-secondary');
-      
-      const sessionTitle = document.getElementById('session-title');
-      if (sessionTitle) sessionTitle.innerText = `오늘의 문장 읽기 (${sessionQuestionCount}/10)`;
-      
-      await generateNewSentence();
-    });
-  }
+  if (restartSessionBtn) restartSessionBtn.addEventListener('click', startSession);
 
-  function parseAssessmentDetails(detailsStr, originalSentence) {
-    if (!detailsStr) return { html: '', worstWord: '', minScore: 100 };
-    let worstWord = '';
-    let minScore = 100;
-    let wordScores = {};
+  // CLOVA 발음 평가 결과를 지문의 글자 하나하나에 맞춘다.
+  // assessment_details 예: "봄바람|{봄(bom):100, 바(p͈ɑ):100, 람(lɑm):97} 이|{이(i):98}"
+  // 조사('이' 등)를 따로 떼어 주므로 단어 이름이 아니라 글자 순서로 맞춰야 엉뚱한 단어에 점수가 붙지 않는다.
+  // heard: 실시간 자막에서 바르게 들린 단어 위치(Set). 자막과 CLOVA가 모두 확인해야 틀렸다고 표시한다.
+  const GOOD_SCORE = 85; // 이 이상이면 잘 읽은 글자/단어
+  const BAD_SCORE = 70;  // 이보다 낮으면 틀린 글자
 
-    const matches = [...detailsStr.matchAll(/([^\s|]+)\|\{([^}]+)\}/g)];
-    
-    matches.forEach(m => {
-      const word = m[1];
-      const scoresStr = m[2];
-      const scoreMatches = scoresStr.match(/\d+/g);
-      let avgScore = 100;
-      if (scoreMatches && scoreMatches.length > 0) {
-        const sum = scoreMatches.reduce((acc, val) => acc + parseInt(val), 0);
-        avgScore = sum / scoreMatches.length;
-      }
-      wordScores[word] = avgScore;
-      if (avgScore < minScore && avgScore < 85) {
-        minScore = avgScore;
-        worstWord = word;
-      }
-    });
+  function parseAssessmentDetails(detailsStr, sentence, heard = null) {
+    const syllables = [...(detailsStr || '').matchAll(/([^\s,{}|(]+)\([^)]*\):\s*(\d+)/g)]
+      .map(m => ({ char: m[1], score: Number(m[2]) }));
+    if (syllables.length === 0) return { html: '', worstWord: '', score: null };
 
-    let html = '';
-    const words = originalSentence.split(' ');
-    words.forEach((w, idx) => {
-      // Find matching word score (fuzzy match or exact)
-      // Clova might split punctuation, so remove punctuation for matching
-      const cleanW = w.replace(/[.,!?]/g, '');
-      let score = wordScores[cleanW];
-      if (score === undefined) score = wordScores[w];
-      
-      if (score === undefined) {
-        // Try substring match for compound words/particles
-        for (const [key, val] of Object.entries(wordScores)) {
-          if (cleanW.includes(key) || key.includes(cleanW)) {
-            score = val;
-            break;
+    let next = 0;
+    const words = sentence.split(' ').map((w, idx) => {
+      const chars = [...w].map(ch => {
+        if (!/[\p{L}\p{N}]/u.test(ch)) return { ch, score: null }; // 문장부호
+        // CLOVA가 글자를 빠뜨려도 밀리지 않도록 앞의 3글자 안에서 같은 글자를 찾는다
+        for (let k = next; k < Math.min(next + 3, syllables.length); k++) {
+          if (syllables[k].char === ch) {
+            next = k + 1;
+            return { ch, score: syllables[k].score };
           }
         }
-      }
-      
-      // Default to neutral score (85) to avoid false greens on unmatched words
-      if (score === undefined) score = 85; 
-      
-      let colorClass = '';
-      if (score >= 90 && cleanW !== worstWord) {
-        colorClass = 'highlight-green';
-      } else if (score < 85 || cleanW === worstWord || (worstWord && worstWord.length > 1 && cleanW.includes(worstWord))) {
-        colorClass = 'highlight-red';
-      }
+        return { ch, score: null };
+      });
+      const scored = chars.filter(c => c.score != null);
+      const score = scored.length ? scored.reduce((sum, c) => sum + c.score, 0) / scored.length : null;
+      return { text: cleanWord(w), chars, score, heardOk: !!heard?.has(idx) };
+    });
 
-      for (let char of w) {
-        html += `<span class="letter-box ${colorClass}">${escapeHtml(char)}</span>`;
-      }
+    // 가장 헷갈린 단어: CLOVA 점수가 낮고, 실시간 자막에서도 바르게 들리지 않은 단어 중 가장 낮은 것
+    const useHeard = heard && heard.size > 0;
+    const worst = words
+      .filter(w => w.score != null && w.score < GOOD_SCORE && !(useHeard && w.heardOk))
+      .sort((a, b) => a.score - b.score)[0];
+
+    let html = '';
+    words.forEach((w, idx) => {
+      w.chars.forEach(c => {
+        let cls = '';
+        if (c.score != null) {
+          if (c.score >= GOOD_SCORE) cls = 'highlight-green';
+          else if (w === worst || (c.score < BAD_SCORE && !(useHeard && w.heardOk))) cls = 'highlight-red';
+        }
+        html += `<span class="letter-box ${cls}">${escapeHtml(c.ch)}</span>`;
+      });
       if (idx < words.length - 1) html += '<span class="mx-4"></span>';
     });
 
-    return { html, worstWord, minScore };
+    // 전체 점수: 자막으로 바르게 들린 단어는 최소 GOOD_SCORE로 보고 글자 수만큼 가중 평균 (CLOVA 점수보다 낮아지지는 않음)
+    let score = null;
+    if (useHeard) {
+      let total = 0, count = 0;
+      words.forEach(w => {
+        const n = w.chars.filter(c => c.score != null).length;
+        if (!n) return;
+        total += (w.heardOk ? Math.max(w.score, GOOD_SCORE) : w.score) * n;
+        count += n;
+      });
+      if (count) score = Math.round(total / count);
+    }
+
+    return { html, worstWord: worst?.text || '', score };
   }
 
   function calculateFluency(usrGraph) {

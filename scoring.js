@@ -53,7 +53,7 @@ export function buildInsights(st) {
   const recommendations = [];
 
   if (s.pronunciation != null && s.pronunciation < 80) {
-    const words = (st.lastReading?.wrongWords || []).slice(0, 3);
+    const words = (st.readingProgress?.wrongWords?.slice(-3).reverse() || st.lastReading?.wrongWords || []).slice(0, 3);
     weaknesses.push(words.length ? `발음이 불명확한 단어: ${words.join(', ')}` : '발음 정확도가 낮음');
     recommendations.push('거울을 보며 입모양을 크게 하여 또박또박 읽기');
   }

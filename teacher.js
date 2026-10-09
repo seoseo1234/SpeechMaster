@@ -100,6 +100,8 @@ const stName = document.getElementById('st-name');
 const stLastDate = document.getElementById('st-last-date');
 const stWeaknesses = document.getElementById('st-weaknesses');
 const stRecommendations = document.getElementById('st-recommendations');
+const stWrongWords = document.getElementById('st-wrong-words');
+const stReadingLevel = document.getElementById('st-reading-level');
 const btnGenerateNeis = document.getElementById('btn-generate-neis');
 const neisOutput = document.getElementById('neis-output');
 const neisLoading = document.getElementById('neis-loading');
@@ -263,6 +265,7 @@ function loadMockStudents() {
             scores,
             lastPresentation: { wpm: 116, habitCount: i % 2 ? 6 : 2, gestureRatio: 0.35, faceTouchRatio: 0, tiltRatio: 0 },
             lastReading: { wrongWords: ['읽었습니다', '닭'] },
+            readingProgress: { level: 3 + i, xp: 40, wrongWords: ['닭', '읽었습니다', '넓은', '앉아서'].slice(0, (i % 4) + 1) },
             mockSessions
         };
     });
@@ -286,6 +289,7 @@ async function selectStudent(st) {
     const rList = insights.recommendations.length > 0 ? insights.recommendations : ['낭독/발표 연습을 진행해주세요.'];
     renderList(stWeaknesses, wList);
     renderList(stRecommendations, rList);
+    renderReadingProgress(st.readingProgress);
 
     // Reset NEIS
     neisOutput.value = '';
@@ -305,6 +309,25 @@ async function selectStudent(st) {
     }
     if (currentStudent !== st) return; // 그 사이 다른 학생을 선택한 경우
     updateLineChart(sessions);
+}
+
+// 저학년 낭독 레벨과 오답 노트 (최근에 틀린 단어가 앞으로)
+function renderReadingProgress(progress) {
+    const words = (progress?.wrongWords || []).slice().reverse();
+    stReadingLevel.textContent = progress ? `낭독 레벨 ${progress.level || 1}` : '';
+    if (words.length === 0) {
+        const empty = document.createElement('span');
+        empty.className = 'font-medium text-gray-500';
+        empty.textContent = progress ? '오답 노트가 비어 있습니다.' : '저학년 낭독 기록이 없습니다.';
+        stWrongWords.replaceChildren(empty);
+        return;
+    }
+    stWrongWords.replaceChildren(...words.map(w => {
+        const chip = document.createElement('span');
+        chip.className = 'px-3 py-1 border-2 border-black bg-[#fee2e2]';
+        chip.textContent = w;
+        return chip;
+    }));
 }
 
 function renderList(listEl, items) {
@@ -466,6 +489,32 @@ btnCopyNeis.addEventListener('click', () => {
 });
 
 // Modal Logic
+const ASSIGN_MODE_TEXT = {
+    presentation: {
+        label: '발표 대본 텍스트',
+        titlePlaceholder: '예: 나의 롤모델 소개하기',
+        scriptPlaceholder: '학생들이 읽고 연습할 대본을 입력하세요...',
+        help: '고학년 모드의 대본 목록에 표시됩니다. 빈 줄로 문단을 나누면 발표 중 현재 문단이 강조됩니다.'
+    },
+    reading: {
+        label: '낭독 지문 텍스트',
+        titlePlaceholder: '예: 국어 3단원 - 내 친구 도토리',
+        scriptPlaceholder: '교과서 지문을 붙여넣으세요. 문장(. ! ?)이나 줄 단위로 나누어 한 문장씩 읽습니다.',
+        help: '저학년 모드에서 문장 단위로 나누어 한 문장씩 읽고 발음을 평가합니다. (최대 20문장)'
+    }
+};
+const assignModeRadios = document.querySelectorAll('input[name="assign-mode"]');
+const selectedAssignMode = () => document.querySelector('input[name="assign-mode"]:checked')?.value || 'presentation';
+
+function applyAssignMode() {
+    const text = ASSIGN_MODE_TEXT[selectedAssignMode()];
+    document.getElementById('assign-script-label').textContent = text.label;
+    document.getElementById('assign-title').placeholder = text.titlePlaceholder;
+    document.getElementById('assign-script').placeholder = text.scriptPlaceholder;
+    document.getElementById('assign-mode-help').textContent = text.help;
+}
+assignModeRadios.forEach(r => r.addEventListener('change', applyAssignMode));
+
 btnAssignScript.addEventListener('click', () => {
     modalAssign.classList.remove('hidden');
 });
@@ -474,11 +523,12 @@ closeAssignBtns.forEach(btn => {
     btn.addEventListener('click', async () => {
         if (btn.innerText.includes('배포하기')) {
             // Get inputs
-            const scriptTitle = document.querySelector('#modal-assign input[type="text"]').value;
-            const scriptText = document.querySelector('#modal-assign textarea').value;
+            const scriptTitle = document.getElementById('assign-title').value;
+            const scriptText = document.getElementById('assign-script').value;
+            const mode = selectedAssignMode();
             
             if (!scriptText.trim()) {
-                alert('대본 텍스트를 입력해주세요.');
+                alert(mode === 'reading' ? '낭독 지문을 입력해주세요.' : '대본 텍스트를 입력해주세요.');
                 return;
             }
             
@@ -495,12 +545,15 @@ closeAssignBtns.forEach(btn => {
                 await addDoc(collection(db, "assignments"), {
                     title: scriptTitle || '제목 없는 과제',
                     script: scriptText,
+                    mode,
                     classCode: teacherInfo.classCode,
                     teacherId: teacherInfo.uid,
                     createdAt: serverTimestamp(),
                     active: true
                 });
-                alert('과제/대본이 성공적으로 배포되었습니다!');
+                alert(mode === 'reading' ? '저학년 낭독 지문이 배포되었습니다!' : '고학년 발표 대본이 배포되었습니다!');
+                document.getElementById('assign-title').value = '';
+                document.getElementById('assign-script').value = '';
                 modalAssign.classList.add('hidden');
             } catch (e) {
                 console.error("Error adding document: ", e);

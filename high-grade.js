@@ -72,6 +72,18 @@ let startTime = 0;
 let recognition = null;
 let mediaRecorder = null;
 let audioChunks = [];
+let recorderStopped = Promise.resolve();
+
+// 다시 듣기 타임라인 (녹음 시작 기준 ms). 녹음은 이 기기에서만 재생하고 저장하지 않는다.
+const MIN_SEGMENT_MS = 1000;   // 이보다 짧은 시선 이탈/흔들림은 표시하지 않음
+const HABIT_GAP_MS = 2000;     // 같은 습관어가 자막에 여러 번 잡혀도 한 번만 표시
+const STT_DELAY_MS = 800;      // 자막이 실제 발화보다 늦게 도착하는 만큼 앞당김
+let recordingStartedAt = 0;
+let recordingDurationMs = 0;
+let timelineEvents = [];       // { type: 'habit' | 'gaze' | 'posture', t, end? }
+let openSegments = { gaze: null, posture: null };
+let lastHabitEventAt = -Infinity;
+let replayUrl = null;
 
 let habitCounts = {
   uh: 0, // 어
@@ -439,9 +451,33 @@ function checkHabitualWords(text) {
   const umMatch = (text.match(/(^|\s)(음+|음마+|음\.\.\.)(?=\s|[.,?!]|$)/g) || []).length;
   const geuMatch = (text.match(/(^|\s)(그+|어그+|그\.\.\.)(?=\s|[.,?!]|$)/g) || []).length;
 
+  if (isPresenting && uhMatch + umMatch + geuMatch > 0) markHabitEvent();
   if (uhMatch > 0) updateHabit('uh', uhMatch);
   if (umMatch > 0) updateHabit('um', umMatch);
   if (geuMatch > 0) updateHabit('geu', geuMatch);
+}
+
+function markHabitEvent() {
+  const t = Math.max(0, Date.now() - recordingStartedAt - STT_DELAY_MS);
+  if (t - lastHabitEventAt < HABIT_GAP_MS) return;
+  lastHabitEventAt = t;
+  timelineEvents.push({ type: 'habit', t });
+}
+
+// 시선 이탈/자세 흔들림이 이어지는 구간을 기록
+function trackSegment(type, active) {
+  const t = Date.now() - recordingStartedAt;
+  if (active) {
+    if (openSegments[type] == null) openSegments[type] = t;
+  } else {
+    closeSegment(type, t);
+  }
+}
+
+function closeSegment(type, t) {
+  const start = openSegments[type];
+  openSegments[type] = null;
+  if (start != null && t - start >= MIN_SEGMENT_MS) timelineEvents.push({ type, t: start, end: t });
 }
 
 function updateHabit(type, count) {
@@ -627,6 +663,7 @@ function predictWebcam() {
             // 1. 시선 처리 (얼굴)
             const isLookingFront = faceLm ? isFacingFront(faceResult) : true;
             const faceInfo = faceLm ? drawFaceBracket(ctx, faceLm, width, height) : null;
+            trackSegment('gaze', !!faceLm && !isLookingFront);
             if (faceLm) {
                 totalGazeFrames++;
                 if (!isLookingFront) outOfGazeCount++;
@@ -636,7 +673,8 @@ function predictWebcam() {
 
             // 2. 자세(몸통) + 제스처(손) 분석
             const body = bodyTracker.update({ pose: poseLm, face: faceInfo, aspect: width / height, t: now });
-            if (body.mode === 'body') drawUpperBody(ctx, poseLm, body, width, height);
+            trackSegment('posture', body.mode !== 'none' && !body.stable);
+if (body.mode === 'body') drawUpperBody(ctx, poseLm, body, width, height);
 
             if (body.mode !== 'none') {
                 if (body.stable) setFeedback('feedback-posture', body.mode === 'body' ? '안정적' : '안정적(얼굴 기준)', 'text-[#96f996]');
@@ -767,6 +805,11 @@ async function startPresentation() {
         if (e.data.size > 0) audioChunks.push(e.data);
     };
     mediaRecorder.start(1000); // chunk every second
+    recordingStartedAt = Date.now();
+    timelineEvents = [];
+    openSegments = { gaze: null, posture: null };
+    lastHabitEventAt = -Infinity;
+    resetReplay();
 
     cameraFeed.srcObject = mediaStream;
     cameraFallback.classList.add('hidden');
@@ -876,9 +919,14 @@ function endPresentation() {
   }
   
   if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      // 마지막 조각까지 받은 뒤 분석/다시 듣기에 사용
+      recorderStopped = new Promise(resolve => mediaRecorder.addEventListener('stop', resolve, { once: true }));
       mediaRecorder.stop();
   }
-  
+  recordingDurationMs = Date.now() - recordingStartedAt;
+  closeSegment('gaze', recordingDurationMs);
+  closeSegment('posture', recordingDurationMs);
+
   if (mediaStream) {
     mediaStream.getTracks().forEach(track => track.stop());
     cameraFeed.srcObject = null;
@@ -939,8 +987,13 @@ async function showAnalysisModal() {
   
   document.getElementById('report-habits').innerText = `분석 중...`;
   document.getElementById('analysis-modal').classList.remove('hidden');
-  
-  if (!presentationHadSound) {
+
+  await recorderStopped;
+  if (audioChunks.length > 0) {
+      showReplay(new Blob(audioChunks, { type: (mediaRecorder.mimeType || 'audio/webm').split(';')[0] }));
+  }
+
+if (!presentationHadSound) {
       document.getElementById('report-habits').innerText = `소리 없음`;
       commentEl.textContent = `발표 중 마이크에서 소리가 들리지 않아 분석하지 않았습니다. ${MIC_HELP}`;
       return;
@@ -1035,6 +1088,108 @@ async function showAnalysisModal() {
       commentEl.innerHTML = '<span class="text-error"></span>';
       commentEl.firstChild.textContent = `오류 발생: 제미나이 분석에 실패했습니다. (${error.message})`;
   }
+}
+
+// ==========================================
+// 다시 듣기 + 타임라인
+// ==========================================
+const replaySection = document.getElementById('replay-section');
+const replayAudio = document.getElementById('replay-audio');
+const replayTimeline = document.getElementById('replay-timeline');
+const replayPlayhead = document.getElementById('replay-playhead');
+const replaySummary = document.getElementById('replay-summary');
+const replayEventList = document.getElementById('replay-events');
+
+const TIMELINE_STYLES = {
+    habit: { label: '습관어', color: '#ba1a1a' },
+    gaze: { label: '시선 이탈', color: '#3B82F6' },
+    posture: { label: '자세 흔들림', color: '#F97316' }
+};
+
+const formatTime = (ms) => {
+    const sec = Math.max(0, Math.floor(ms / 1000));
+    return `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
+};
+
+function resetReplay() {
+    replayAudio.pause();
+    replayAudio.removeAttribute('src');
+    if (replayUrl) URL.revokeObjectURL(replayUrl);
+    replayUrl = null;
+    replaySection.classList.add('hidden');
+}
+
+// 해당 시점 조금 앞부터 재생
+function playFrom(ms) {
+    replayAudio.currentTime = Math.max(0, ms - 1500) / 1000;
+    replayAudio.play().catch(() => {});
+}
+
+function showReplay(blob) {
+    resetReplay();
+    replayUrl = URL.createObjectURL(blob);
+    replayAudio.src = replayUrl;
+    replaySection.classList.remove('hidden');
+
+    const total = Math.max(1, recordingDurationMs);
+    const pct = (ms) => `${Math.min(100, Math.max(0, (ms / total) * 100))}%`;
+    const events = timelineEvents.slice().sort((a, b) => a.t - b.t);
+
+    // 타임라인: 구간(시선/자세)은 띠, 습관어는 세로선
+    const marks = events.map(ev => {
+        const style = TIMELINE_STYLES[ev.type];
+        const mark = document.createElement('button');
+        mark.type = 'button';
+        mark.title = `${formatTime(ev.t)} ${style.label}`;
+        mark.style.left = pct(ev.t);
+        mark.style.backgroundColor = style.color;
+        if (ev.type === 'habit') {
+            mark.className = 'absolute top-0 bottom-0 w-1.5 -ml-[3px] z-10';
+        } else {
+            mark.className = `absolute h-3 opacity-70 ${ev.type === 'gaze' ? 'top-1' : 'bottom-1'}`;
+            mark.style.width = `max(4px, calc(${pct(ev.end)} - ${pct(ev.t)}))`;
+        }
+        mark.addEventListener('click', (e) => { e.stopPropagation(); playFrom(ev.t); });
+        return mark;
+    });
+    replayTimeline.replaceChildren(...marks, replayPlayhead);
+    replayPlayhead.style.left = '0%';
+
+    const count = (type) => events.filter(ev => ev.type === type).length;
+    replaySummary.textContent = events.length === 0
+        ? '표시할 구간이 없어요. 시선과 자세가 안정적이었어요! 👏'
+        : `습관어 ${count('habit')}곳 · 시선 이탈 ${count('gaze')}구간 · 자세 흔들림 ${count('posture')}구간 — 표시를 누르면 그 부분부터 들려줘요.`;
+
+    replayEventList.replaceChildren(...events.slice(0, 30).map(ev => {
+        const style = TIMELINE_STYLES[ev.type];
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'px-2 py-1 border-2 border-black bg-white text-sm font-bold flex items-center gap-1 hover:bg-surface-variant';
+        const dot = document.createElement('span');
+        dot.className = 'inline-block w-3 h-3';
+        dot.style.backgroundColor = style.color;
+        chip.append(dot, `${formatTime(ev.t)} ${style.label}`);
+        chip.addEventListener('click', () => playFrom(ev.t));
+        return chip;
+    }));
+}
+
+if (replayAudio) {
+    // MediaRecorder로 만든 webm은 길이 정보가 없어(Infinity) 재생바가 동작하지 않으므로 끝으로 한 번 이동해 길이를 계산시킨다
+    replayAudio.addEventListener('loadedmetadata', () => {
+        if (replayAudio.duration !== Infinity) return;
+        replayAudio.addEventListener('durationchange', () => { replayAudio.currentTime = 0; }, { once: true });
+        replayAudio.currentTime = 1e101;
+    });
+    replayAudio.addEventListener('timeupdate', () => {
+        replayPlayhead.style.left = `${Math.min(100, (replayAudio.currentTime * 1000 / Math.max(1, recordingDurationMs)) * 100)}%`;
+    });
+    replayTimeline.addEventListener('click', (e) => {
+        const rect = replayTimeline.getBoundingClientRect();
+        replayAudio.currentTime = ((e.clientX - rect.left) / rect.width) * recordingDurationMs / 1000;
+        replayAudio.play().catch(() => {});
+    });
+    closeModalBtn.addEventListener('click', () => replayAudio.pause());
 }
 
 // ==========================================
@@ -1144,7 +1299,7 @@ function subscribeAssignments(classCode) {
         const previous = new Map(assignments.map(a => [a.id, a]));
         assignments = snapshot.docs
             .map(d => ({ id: d.id, ...d.data() }))
-            .filter(a => a.active && a.script)
+            .filter(a => a.active && a.script && a.mode !== 'reading') // 저학년 낭독 지문 제외
             .sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0))
             .map(a => ({ ...a, isNew: !firstLoad && (previous.get(a.id)?.isNew ?? !knownAssignmentIds.has(a.id)) }));
         if (firstLoad) knownAssignmentIds = new Set(assignments.map(a => a.id));

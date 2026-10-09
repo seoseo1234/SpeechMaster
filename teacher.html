@@ -213,6 +213,13 @@
                             </ul>
                         </div>
                     </div>
+                    <div class="bg-white border-2 border-black p-4 mt-4">
+                        <h4 class="font-bold text-black mb-2 border-b border-gray-300 pb-1 flex items-center justify-between gap-2">
+                            <span>저학년 오답 노트 (자주 틀리는 단어)</span>
+                            <span id="st-reading-level" class="text-sm font-black text-gray-600"></span>
+                        </h4>
+                        <div id="st-wrong-words" class="flex flex-wrap gap-2 font-bold"></div>
+                    </div>
                 </div>
 
                 <!-- NEIS Builder -->
@@ -279,19 +286,27 @@
                     </select>
                 </div>
                 <div>
-                    <label class="font-black block mb-2">과제 제목</label>
-                    <input type="text" placeholder="예: 나의 롤모델 소개하기" class="w-full border-4 border-black p-3 font-bold bg-surface-variant focus:outline-none focus:bg-white">
+                    <label class="font-black block mb-2">과제 종류</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="flex items-center gap-2 cursor-pointer border-4 border-black p-3 bg-surface-variant has-[:checked]:bg-secondary">
+                            <input type="radio" name="assign-mode" value="presentation" class="w-5 h-5 border-2 border-black text-primary focus:ring-0" checked>
+                            <span class="font-bold">고학년 발표 대본</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer border-4 border-black p-3 bg-surface-variant has-[:checked]:bg-secondary">
+                            <input type="radio" name="assign-mode" value="reading" class="w-5 h-5 border-2 border-black text-primary focus:ring-0">
+                            <span class="font-bold">저학년 낭독 지문</span>
+                        </label>
+                    </div>
                 </div>
                 <div>
-                    <label class="font-black block mb-2">발표 대본 텍스트</label>
-                    <textarea rows="5" placeholder="학생들이 읽고 연습할 대본을 입력하세요..." class="w-full border-4 border-black p-3 font-medium bg-surface-variant focus:outline-none focus:bg-white resize-none"></textarea>
+                    <label class="font-black block mb-2">과제 제목</label>
+                    <input id="assign-title" type="text" placeholder="예: 나의 롤모델 소개하기" class="w-full border-4 border-black p-3 font-bold bg-surface-variant focus:outline-none focus:bg-white">
                 </div>
-                <div class="flex items-center gap-4">
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" class="w-6 h-6 border-4 border-black text-primary focus:ring-0 rounded-none bg-surface-variant" checked>
-                        <span class="font-bold">저학년(음소 분석) 모드 활성화</span>
-                    </label>
+                <div>
+                    <label id="assign-script-label" class="font-black block mb-2">발표 대본 텍스트</label>
+                    <textarea id="assign-script" rows="5" placeholder="학생들이 읽고 연습할 대본을 입력하세요..." class="w-full border-4 border-black p-3 font-medium bg-surface-variant focus:outline-none focus:bg-white resize-none"></textarea>
                 </div>
+                <p id="assign-mode-help" class="text-sm font-bold text-gray-600">고학년 모드의 대본 목록에 표시됩니다. 빈 줄로 문단을 나누면 발표 중 현재 문단이 강조됩니다.</p>
             </div>
             
             <button class="btn-close-modal brutalist-button bg-tertiary text-white py-4 font-black text-xl hover:bg-green-600 mt-2">
